@@ -45,3 +45,35 @@ pubspec.lock
 
 # Other
 *.log
+
+
+# Archivos de configuración de Spring Boot (evita subir configuraciones locales)
+Back-end/food/src/main/resources/application*.properties
+Back-end/food/src/main/resources/application*.yml
+
+# Carpetas de compilación y dependencias
+Back-end/food/target/
+**/**/target/
+Back-end/food/build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# Archivos del IDE (IntelliJ)
+Back-end/food/.idea/
+*.iws
+*.iml
+*.ipr
+
+# Archivos de Maven (wrapper y logs)
+.mvn/
+mvnw
+mvnw.cmd
+*.log
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Archivos temporales
+*.tmp
+*.bak
