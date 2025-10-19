@@ -1,7 +1,7 @@
 class Api_Constants {
-  static const String Url = "url";
-  static const String LoginPoint = "loginurl";
-  static const String RegisterPoint = "registerurl";
+  static const String Url = "http://localhost:8000/api";
+  static const String LoginPoint = "http://localhost:8000/api/auth/login";
+  static const String RegisterPoint = "http://localhost:8000/api/auth/register";
   static const Duration timeout = Duration(seconds: 10);
 }
 

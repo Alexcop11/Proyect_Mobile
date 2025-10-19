@@ -25,8 +25,8 @@ class ApiServices {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
-          if(_token != null){
-            options.headers['Authorization'] = 'Bearer $_token'
+          if (_token != null) {
+            options.headers['Authorization'] = 'Bearer $_token';
           }
           return handler.next(options);
         },
@@ -34,7 +34,7 @@ class ApiServices {
           return handler.next(response);
         },
         onError: (error, handler) {
-          if(error.response?.statusCode == 401) {
+          if (error.response?.statusCode == 401) {
             print("Token Expirado");
           }
           return handler.next(error);
@@ -47,7 +47,7 @@ class ApiServices {
     _token = token;
   }
 
-  void cleanToken () {
+  void cleanToken() {
     _token = null;
   }
 
@@ -69,7 +69,7 @@ class ApiServices {
       throw _handleError(e);
     }
   }
-  
+
   Exception _handleError(DioException error) {
     if (error.response != null) {
       final responseData = error.response!.data;
@@ -84,8 +84,4 @@ class ApiServices {
       return Exception('Error de conexión: ${error.message}');
     }
   }
-
-
-
-
 }
