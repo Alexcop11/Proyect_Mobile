@@ -1,11 +1,10 @@
 class Api_Constants {
-  static const String Url = "http://localhost:8000/api";
-  static const String LoginPoint = "http://localhost:8000/api/auth/login";
-  static const String RegisterPoint = "http://localhost:8000/api/auth/register";
+  static const String url = "http://192.168.0.11:8000/api";
+  static const String loginPoint = '/auth/login';
+  static const String registerPoint = '/auth/register';
   static const Duration timeout = Duration(seconds: 10);
 }
 
 class StorageKeys {
   static const String token = "auth_token";
-  static const String userData = "user_data";
 }

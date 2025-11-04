@@ -12,9 +12,9 @@ class ApiServices {
   void _configDio() {
     _dio = Dio(
       BaseOptions(
-        baseUrl: Api_Constants.Url,
-        connectTimeout: Api_Constants.timeout,
-        receiveTimeout: Api_Constants.timeout,
+        baseUrl: Api_Constants.url,
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 10),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -30,12 +30,10 @@ class ApiServices {
           }
           return handler.next(options);
         },
-        onResponse: (response, handler) {
-          return handler.next(response);
-        },
         onError: (error, handler) {
           if (error.response?.statusCode == 401) {
-            print("Token Expirado");
+            print("Token expirado");
+            cleanToken();
           }
           return handler.next(error);
         },
@@ -73,11 +71,8 @@ class ApiServices {
   Exception _handleError(DioException error) {
     if (error.response != null) {
       final responseData = error.response!.data;
-      if (responseData is Map && responseData.containsKey('error')) {
-        final errorData = responseData['error'];
-        if (errorData is Map && errorData.containsKey('message')) {
-          return Exception(errorData['message']);
-        }
+      if (responseData is Map && responseData.containsKey('message')) {
+        return Exception(responseData['message']);
       }
       return Exception('Error del servidor: ${error.response!.statusCode}');
     } else {

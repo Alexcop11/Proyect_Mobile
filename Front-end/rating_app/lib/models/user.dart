@@ -1,5 +1,4 @@
 class User {
- 
   final int id_usuario;
   final String email;
   final String password_hash;

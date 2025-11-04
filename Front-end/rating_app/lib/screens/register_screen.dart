@@ -1,48 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:rating_app/core/providers/auth_provider.dart';
-import 'package:rating_app/core/services/api_services.dart';
-import 'package:rating_app/core/services/auth_service.dart';
-import 'package:rating_app/screens/recoverpassword_screen.dart';
-import "register_screen.dart";
-import "home_screen.dart";
+import 'package:rating_app/screens/login_screen.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _RegisterScreenState extends State<RegisterScreen> {
+  final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  final AuthService _authService = AuthService(ApiServices());
-
+  final TextEditingController passwordControllerSame = TextEditingController();
   bool _isPasswordVisible = false;
-
-  void _handleLogin() async {
-    final email = emailController.text.trim();
-    final password = passwordController.text.trim();
-
-    if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Favor de ingresar correo y contraseña")),
-      );
-      return;
-    }
-
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final success = await authProvider.login(email, password);
-
-    if (!success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(authProvider.errorMessage ?? "Error al iniciar sesión"),
-        ),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 20),
                   Row(
                     children: const [
                       CircleAvatar(
@@ -78,7 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              "Bienvenidos",
+                              "Crea tu cuenta en FoodFinder",
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 28,
@@ -89,7 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             Text(
                               "Descubre los mejores restaurantes cerca de ti",
                               style: TextStyle(
-                                color: Colors.white70,
+                                color: Colors.white,
                                 fontSize: 14,
                               ),
                               textAlign: TextAlign.justify,
@@ -99,8 +70,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 180),
 
+                  //Formulario
+                  const SizedBox(height: 75),
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.9),
@@ -111,8 +83,33 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Input Nombre
+                        const SizedBox(height: 24),
                         const Text(
-                          'Correo Electrónico:',
+                          "Nombre Completo",
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: nameController,
+                          keyboardType: TextInputType.name,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            focusedErrorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Colors.redAccent,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Input Correo
+                        const SizedBox(height: 15),
+                        const Text(
+                          "Correo Electronico",
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 8),
@@ -131,7 +128,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 20),
+
+                        // Input Password
+                        const SizedBox(height: 15),
                         const Text(
                           'Contraseña:',
                           style: TextStyle(fontWeight: FontWeight.bold),
@@ -164,7 +163,44 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 24),
+
+                        //Confirmar password
+                        const SizedBox(height: 15),
+                        const Text(
+                          'Confirmar constraseña:',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: passwordControllerSame,
+                          obscureText: !_isPasswordVisible,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: Colors.redAccent,
+                              ),
+                            ),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _isPasswordVisible
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _isPasswordVisible = !_isPasswordVisible;
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+
+                        //Boton de registro
+                        const SizedBox(height: 15),
                         SizedBox(
                           width: double.infinity,
                           height: 50,
@@ -175,9 +211,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            onPressed: _handleLogin,
+                            onPressed: () {
+                              final name = nameController.text;
+                              final email = emailController.text;
+                              final password = passwordController.text;
+                            },
                             child: const Text(
-                              'Iniciar Sesión',
+                              "Registrarse",
                               style: TextStyle(
                                 fontSize: 16,
                                 color: Colors.white,
@@ -185,46 +225,36 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ),
+
                         const SizedBox(height: 16),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Text('¿No tienes cuenta? '),
-                                GestureDetector(
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => RegisterScreen(),
-                                      ),
-                                    );
-                                  },
-                                  child: const Text(
-                                    'Regístrate',
-                                    style: TextStyle(color: Colors.redAccent),
+                        Center(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Text("Ya tienes cuenta?"),
+                                  GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => LoginScreen(),
+                                        ),
+                                      );
+                                    },
+                                    child: const Text(
+                                      ' Iniciar Sesion',
+                                      style: TextStyle(color: Colors.redAccent),
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            GestureDetector(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        RecoverpasswordScreen(),
-                                  ),
-                                );
-                              },
-                              child: const Text(
-                                '¿Olvidaste tu contraseña?',
-                                style: TextStyle(color: Colors.teal),
+                                ],
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -236,5 +266,6 @@ class _LoginScreenState extends State<LoginScreen> {
         ],
       ),
     );
+    throw UnimplementedError();
   }
 }
