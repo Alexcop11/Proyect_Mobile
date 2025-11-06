@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:rating_app/core/providers/auth_provider.dart';
 import 'package:rating_app/screens/login_screen.dart';
+import 'package:rating_app/widgets/NavigationScaffold.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -14,9 +15,22 @@ class HomeScreen extends StatelessWidget {
           return const LoginScreen();
         }
 
-        return Scaffold(
+        return Navigationscaffold(
+          currentIndex: 0,
+          onTap: (index) {
+            switch (index) {
+              case 0:
+                break;
+              case 1:
+                Navigator.pushReplacementNamed(context, '/search');
+                break;
+              case 2:
+                Navigator.pushReplacementNamed(context, '/profile');
+                break;
+            }
+          },
           appBar: AppBar(
-            title: const Text("Inicio"),
+            title: const Text("FoodFinder"),
             actions: [
               IconButton(
                 icon: const Icon(Icons.logout),
@@ -26,20 +40,18 @@ class HomeScreen extends StatelessWidget {
               ),
             ],
           ),
-          body: Padding(
+          child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+              children: const [
                 Text(
-                  '¡Hola, Usuario',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  '¡Hola, Usuario!',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 32),
-                
+                SizedBox(height: 32),
+
+                //Contenido
               ],
             ),
           ),
