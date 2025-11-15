@@ -38,6 +38,9 @@ dependencies:
   flutter_dotenv: ^6.0.0
   logger: ^2.6.2
   provider: ^6.1.5+1
+  flutter_map: ^8.2.2
+  latlong2: ^0.9.1
+  geolocator: ^14.0.2
 
 dev_dependencies:
   flutter_launcher_icons: ^0.13.1

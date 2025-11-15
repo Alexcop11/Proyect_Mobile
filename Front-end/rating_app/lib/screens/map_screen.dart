@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:rating_app/core/providers/auth_provider.dart';
+import 'package:rating_app/screens/home_screen.dart';
 import 'package:rating_app/screens/login_screen.dart';
 import 'package:rating_app/widgets/NavigationScaffold.dart';
+import 'package:rating_app/widgets/custom_map.dart';
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+class MapaScreen extends StatelessWidget {
+  const MapaScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -16,19 +18,18 @@ class HomeScreen extends StatelessWidget {
         }
 
         return Navigationscaffold(
-          currentIndex: 0,
+          currentIndex: 1,
           onTap: (index) {
             switch (index) {
-              case 0:
-                Navigator.pushReplacementNamed(context, '/');
-                break;
               case 1:
-                Navigator.pushReplacementNamed(context, '/search');
+                break;
+              case 0:
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                );
                 break;
               case 2:
-                Navigator.pushReplacementNamed(context, '/favorites');
-                break;
-              case 3:
                 Navigator.pushReplacementNamed(context, '/profile');
                 break;
             }
@@ -48,14 +49,8 @@ class HomeScreen extends StatelessWidget {
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  '¡Hola, Usuario!',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 32),
-
-                //Contenido
+              children: [
+                Expanded(child: CustomMap()), //Contenido
               ],
             ),
           ),

@@ -19,13 +19,17 @@ class AuthService {
       );
 
       final responseData = response.data;
-      debugPrint('Respuesta completa: ${jsonEncode(responseData)}');
+
+      debugPrint("📤 Enviando login con: $email");
+      debugPrint("📥 Respuesta: ${jsonEncode(responseData)}");
+
       if (responseData['type'] == 'SUCCESS' && responseData['result'] != null) {
         final token = responseData['result'];
         await _saveAuthData(token);
-        return {"token": token,};
+        return {"token": token};
       } else {
-        final errorMessage = responseData['message'] ?? 'Credenciales incorrectas';
+        final errorMessage =
+            responseData['message'] ?? 'Credenciales incorrectas';
         throw Exception(errorMessage);
       }
     } catch (e) {
@@ -33,7 +37,11 @@ class AuthService {
     }
   }
 
-  Future<Map<String, dynamic>> register(String name, String email, String password) async {
+  Future<Map<String, dynamic>> register(
+    String name,
+    String email,
+    String password,
+  ) async {
     final response = await _apiServices.request(
       method: 'POST',
       endpoint: Api_Constants.registerPoint,
@@ -41,7 +49,7 @@ class AuthService {
     );
 
     final responseData = response.data;
-    
+
     if (responseData['data']?['token'] != null) {
       final token = responseData['data']['token'];
       final user = User.fromJson(responseData['data']['user']);
