@@ -8,10 +8,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
+import utez.edu.mx.food.security.entity.UserDetailsImpl;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class JwtProvider {
@@ -26,9 +30,22 @@ public class JwtProvider {
     private static final String TOKEN_TYPE = "Bearer ";
 
     public String generateToken(Authentication auth) {
-        UserDetails user = (UserDetails) auth.getPrincipal();
+        UserDetailsImpl user = (UserDetailsImpl) auth.getPrincipal();
         Claims claims = Jwts.claims().setSubject(user.getUsername());
-        claims.put("roles", user.getAuthorities());
+
+        String role = user.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .findFirst()
+                .map(authority -> authority.replace("ROLE_", ""))
+                .orElse("NORMAL");
+
+        claims.put("role", role);
+
+        List<String> roles = user.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toList());
+
+        claims.put("roles", roles);
 
         Date tokenCreateTime = new Date();
         Date tokenValidity = new Date(tokenCreateTime.getTime() + expiration * 1000);
