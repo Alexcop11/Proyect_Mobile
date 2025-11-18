@@ -1,0 +1,79 @@
+# Flutter/Dart/Pub related
+.dart_tool/
+.packages
+.pub-cache/
+build/
+flutter_*.png
+
+# Android related
+android/.gradle/
+android/.idea/
+android/local.properties
+android/*.iml
+*.iml
+
+# iOS related (si decides incluirlo después)
+ios/.generated/
+ios/.symlinks/
+ios/Pods/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/ServiceDefinitions.json
+ios/Runner.xcworkspace/
+ios/xcuserdata/
+*.xcworkspace
+*.xcodeproj
+*.xcuserdata
+
+# VS Code
+.vscode/
+
+# IntelliJ / Android Studio
+.idea/
+
+# macOS, Linux, Windows build folders
+macos/
+linux/
+windows/
+
+# Web
+web/
+
+# Generated files
+*.lock
+pubspec.lock
+
+# Other
+*.log
+
+
+# Archivos de configuración de Spring Boot (evita subir configuraciones locales)
+Back-end/food/src/main/resources/application*.properties
+Back-end/food/src/main/resources/application*.yml
+
+# Carpetas de compilación y dependencias
+Back-end/food/target/
+**/**/target/
+Back-end/food/build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# Archivos del IDE (IntelliJ)
+Back-end/food/.idea/
+*.iws
+*.iml
+*.ipr
+
+# Archivos de Maven (wrapper y logs)
+.mvn/
+mvnw
+mvnw.cmd
+*.log
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Archivos temporales
+*.tmp
+*.bak
