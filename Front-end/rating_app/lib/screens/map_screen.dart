@@ -36,6 +36,8 @@ class MapaScreen extends StatelessWidget {
           },
           appBar: AppBar(
             title: const Text("FoodFinder"),
+            backgroundColor: Colors.redAccent,
+            foregroundColor: Colors.white,
             actions: [
               IconButton(
                 icon: const Icon(Icons.logout),

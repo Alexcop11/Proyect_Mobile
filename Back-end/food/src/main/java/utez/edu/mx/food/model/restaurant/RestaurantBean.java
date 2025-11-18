@@ -20,6 +20,8 @@ public class RestaurantBean {
     @JoinColumn(name = "id_usuario_propietario", nullable = false)
     private UserBean usuarioPropietario;
 
+
+
     @Column(name = "nombre", nullable = false, length = 200)
     private String nombre;
 

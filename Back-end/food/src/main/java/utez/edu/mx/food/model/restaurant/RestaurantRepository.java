@@ -15,6 +15,8 @@ public interface RestaurantRepository extends JpaRepository<RestaurantBean, Inte
 
     List<RestaurantBean> findByUsuarioPropietario(UserBean usuarioPropietario);
 
+    Optional<RestaurantBean> findByUsuarioPropietarioEmail(String email);
+
     List<RestaurantBean> findByActivoTrue();
 
     List<RestaurantBean> findByActivoFalse();

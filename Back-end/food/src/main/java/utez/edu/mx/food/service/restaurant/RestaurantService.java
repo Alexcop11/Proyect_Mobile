@@ -51,6 +51,16 @@ public class RestaurantService {
         return new ResponseEntity<>(new Message(restaurant.get(), "Restaurante encontrado", TypesResponse.SUCCESS), HttpStatus.OK);
     }
 
+    @Transactional(readOnly = true)
+    public ResponseEntity<Message> findOwnerByEmail(String email) {
+        Optional<RestaurantBean> restaurant = restaurantRepository.findByUsuarioPropietarioEmail(email);
+        if(!restaurant.isPresent()) {
+            return new ResponseEntity<>(new Message("Restaurante no encontrado", TypesResponse.ERROR), HttpStatus.NOT_FOUND);
+        }
+        logger.info("Restaurante encontrado correctamente");
+        return new ResponseEntity<>(new Message(restaurant.get(), "Restaurante encontrado", TypesResponse.SUCCESS), HttpStatus.OK);
+    }
+
     @Transactional(rollbackFor = {SQLException.class})
     public ResponseEntity<Message> save(RestaurantDTO dto) {
         // Validaciones

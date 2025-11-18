@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:rating_app/core/providers/auth_provider.dart';
 import 'package:rating_app/screens/login_screen.dart';
 import 'package:rating_app/widgets/NavigationScaffold.dart';
+import 'package:rating_app/screens/auth_wrapper.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -35,11 +36,20 @@ class HomeScreen extends StatelessWidget {
           },
           appBar: AppBar(
             title: const Text("FoodFinder"),
+            backgroundColor: Colors.redAccent,
+            foregroundColor: Colors.white,
             actions: [
               IconButton(
                 icon: const Icon(Icons.logout),
                 onPressed: () async {
+                  final authProvider = Provider.of<AuthProvider>(context, listen: false);
                   await authProvider.logout();
+
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => AuthWrapper()),
+                    (route) => false,
+                  );
                 },
               ),
             ],
@@ -48,14 +58,14 @@ class HomeScreen extends StatelessWidget {
             padding: const EdgeInsets.all(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
-                  '¡Hola, Usuario!',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  '¡Hola, ${authProvider.nombre ?? 'Usuario'}!',
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),
-                SizedBox(height: 32),
-
+                const SizedBox(height: 32),
                 //Contenido
+                
               ],
             ),
           ),

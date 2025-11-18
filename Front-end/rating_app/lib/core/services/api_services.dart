@@ -1,9 +1,12 @@
 import 'package:dio/dio.dart';
 import '../utils/constants.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiServices {
   late Dio _dio;
   String? _token;
+  String? _role;
+  String? _email;
 
   ApiServices() {
     _configDio();
@@ -39,6 +42,14 @@ class ApiServices {
         },
       ),
     );
+  }
+
+  void setRole(String role) {
+    _role = role;
+  }
+
+  void cleanRole() {
+    _role = null;
   }
 
   void setToken(String token) {
@@ -78,5 +89,13 @@ class ApiServices {
     } else {
       return Exception('Error de conexión: ${error.message}');
     }
+  }
+
+  void setEmail(String email) {
+    _email = email;
+  }
+
+  void cleanEmail() {
+    _email = null;
   }
 }

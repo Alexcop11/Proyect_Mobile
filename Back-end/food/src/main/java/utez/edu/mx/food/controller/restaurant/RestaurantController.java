@@ -31,6 +31,12 @@ public class RestaurantController {
         return restaurantService.findById(id);
     }
 
+    @GetMapping("/owner/{email}")
+    public ResponseEntity<Message> getRestaurantByEmail(@PathVariable String email) {
+        logger.info("Solicitando restaurante con email: {}", email);
+        return restaurantService.findOwnerByEmail(email);
+    }
+
     @PostMapping("/")
     public ResponseEntity<Message> createRestaurant(@RequestBody RestaurantDTO restaurantDTO) {
         logger.info("Creando nuevo restaurante: {}", restaurantDTO.getNombre());

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:rating_app/core/providers/auth_provider.dart';
 import 'package:rating_app/widgets/nav-bar.dart';
 
 class Navigationscaffold extends StatelessWidget {
@@ -17,10 +19,13 @@ class Navigationscaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
+    final role = authProvider.role ?? "NORMAL";
+
     return Scaffold(
       appBar: appBar,
       body: child,
-      bottomNavigationBar: Navbar(page: currentIndex, onTap: onTap),
+      bottomNavigationBar: Navbar(page: currentIndex, onTap: onTap, role:role,),
     );
   }
 }
