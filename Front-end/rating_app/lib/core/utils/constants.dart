@@ -1,10 +1,10 @@
 class Api_Constants {
-  static const String url = "http://192.168.107.81:8000/api";
-  static const String loginPoint = 'http://192.168.107.81:8000/api/auth/login';
-  static const String registerPoint = 'http://192.168.107.81:8000/api/auth/register';
-  static const String userPoint = 'http://192.168.107.81:8000/api/users/email/';
-  static const String restaurantPoint = 'http://192.168.107.81:8000/api/restaurants/';
-  static const String restaurantOwnerPoint = 'http://192.168.107.81:8000/api/restaurants/owner/';
+  static const String url = "http://192.168.105.21:8000/api";
+  static const String loginPoint = 'http://192.168.105.21:8000/api/auth/login';
+  static const String registerPoint = 'http://192.168.105.21:8000/api/auth/register';
+  static const String userPoint = 'http://192.168.105.21:8000/api/users/email/';
+  static const String restaurantPoint = 'http://192.168.105.21:8000/api/restaurants/';
+  static const String restaurantOwnerPoint = 'http://192.168.105.21:8000/api/restaurants/owner/';
   static const Duration timeout = Duration(seconds: 10);
 }
 

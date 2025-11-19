@@ -58,7 +58,7 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
     }
   }
-
+  
   Future<bool> login(String email, String password) async {
     _isLoading = true;
     notifyListeners();
