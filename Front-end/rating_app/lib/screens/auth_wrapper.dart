@@ -1,4 +1,3 @@
-// lib/screens/auth_wrapper.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:rating_app/core/providers/auth_provider.dart';
