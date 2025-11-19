@@ -213,6 +213,66 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> updateRestaurant({
+    required int idRestaurante,
+    required String nombre,
+    required String descripcion,
+    required String direccion,
+    required double latitud,
+    required double longitud,
+    required String telefono,
+    required String horarioApertura,
+    required String horarioCierre,
+    required double precioPromedio,
+    required String categoria,
+    required String menuUrl,
+    required String fechaRegistro,
+    required bool activo,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      if (_email == null) {
+        throw Exception("No hay sesión activa para actualizar restaurante");
+      }
+
+      final userData = await _authService.getUser(_email!);
+      final idUsuarioPropietario = userData['idUsuario'];
+
+      final result = await _authService.updateRestaurant(
+        idRestaurante: idRestaurante,
+        idUsuarioPropietario: idUsuarioPropietario,
+        nombre: nombre,
+        descripcion: descripcion,
+        direccion: direccion,
+        latitud: latitud,
+        longitud: longitud,
+        telefono: telefono,
+        horarioApertura: horarioApertura,
+        horarioCierre: horarioCierre,
+        precioPromedio: precioPromedio,
+        categoria: categoria,
+        menuUrl: menuUrl,
+        fechaRegistro: fechaRegistro,
+        activo: activo,
+      );
+
+      debugPrint("Restaurante actualizado: ${result['idRestaurante']}");
+      _errorMessage = null;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      debugPrint("❌ Error al actualizar restaurante: $_errorMessage");
+      notifyListeners();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<Map<String, dynamic>?> checkRestaurantStatus(String email) async {
     try {
       final restaurantData = await _authService.getRestaurantByEmail(email);

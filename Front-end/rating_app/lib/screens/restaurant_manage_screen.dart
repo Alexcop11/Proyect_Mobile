@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:rating_app/core/providers/auth_provider.dart';
+import 'package:rating_app/screens/edit_restaurant.dart';
 import 'package:rating_app/screens/login_screen.dart';
 import 'package:rating_app/screens/register_restaurant.dart';
 import 'package:rating_app/screens/restaurant_screen.dart';
 import 'package:rating_app/widgets/NavigationScaffold.dart';
-import 'package:rating_app/screens/auth_wrapper.dart'; // 👈 tu pantalla de registro
+import 'package:rating_app/screens/auth_wrapper.dart';
 
 class Restaurant_manage_Screen extends StatelessWidget {
   const Restaurant_manage_Screen({super.key});
@@ -85,32 +86,81 @@ class Restaurant_manage_Screen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        "Tu Restaurante",
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
+                      //Restaurante
+                      Card(
+                        margin: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 12),
+                                  child: Icon(
+                                    Icons.restaurant,
+                                    color: Colors.redAccent,
+                                  ),
+                                ),
+                                const Text(
+                                  "Tu Restaurante",
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.edit,
+                                    color: Colors.redAccent,
+                                  ),
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => EditRestaurantScreen(
+                                          restaurantData: restaurantData,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            _buildCard("Nombre", restaurantData['nombre']),
+                            _buildCard(
+                              "Descripción",
+                              restaurantData['descripcion'],
+                            ),
+                            _buildCard(
+                              "Dirección",
+                              restaurantData['direccion'],
+                            ),
+                            _buildCard("Teléfono", restaurantData['telefono']),
+                            _buildCard(
+                              "Horario Apertura",
+                              restaurantData['horarioApertura'],
+                            ),
+                            _buildCard(
+                              "Horario Cierre",
+                              restaurantData['horarioCierre'],
+                            ),
+                            _buildCard(
+                              "Precio Promedio",
+                              restaurantData['precioPromedio'].toString(),
+                            ),
+                            _buildCard(
+                              "Categoría",
+                              restaurantData['categoria'],
+                            ),
+                            _buildCard("Menú URL", restaurantData['menuUrl']),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      _buildCard("Nombre", restaurantData['nombre']),
-                      _buildCard("Descripción", restaurantData['descripcion']),
-                      _buildCard("Dirección", restaurantData['direccion']),
-                      _buildCard("Teléfono", restaurantData['telefono']),
-                      _buildCard(
-                        "Horario Apertura",
-                        restaurantData['horarioApertura'],
-                      ),
-                      _buildCard(
-                        "Horario Cierre",
-                        restaurantData['horarioCierre'],
-                      ),
-                      _buildCard(
-                        "Precio Promedio",
-                        restaurantData['precioPromedio'].toString(),
-                      ),
-                      _buildCard("Categoría", restaurantData['categoria']),
-                      _buildCard("Menú URL", restaurantData['menuUrl']),
                     ],
                   ),
                 ),
@@ -124,8 +174,8 @@ class Restaurant_manage_Screen extends StatelessWidget {
 
   Widget _buildCard(String title, String? value) {
     return Card(
-      elevation: 3,
-      margin: const EdgeInsets.symmetric(vertical: 8),
+      elevation: 0,
+      margin: const EdgeInsets.symmetric(vertical: 4),
       child: ListTile(
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(value ?? "No disponible"),

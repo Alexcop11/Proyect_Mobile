@@ -177,6 +177,56 @@ class AuthService {
     return null;
   }
 
+  Future<Map<String, dynamic>> updateRestaurant({
+    required int idRestaurante,
+    required int idUsuarioPropietario,
+    required String nombre,
+    required String descripcion,
+    required String direccion,
+    required double latitud,
+    required double longitud,
+    required String telefono,
+    required String horarioApertura,
+    required String horarioCierre,
+    required double precioPromedio,
+    required String categoria,
+    required String menuUrl,
+    required String fechaRegistro,
+    required bool activo,
+  }) async {
+    final payload = {
+      "idRestaurante": idRestaurante,
+      "idUsuarioPropietario": idUsuarioPropietario,
+      "nombre": nombre,
+      "descripcion": descripcion,
+      "direccion": direccion,
+      "latitud": latitud,
+      "longitud": longitud,
+      "telefono": telefono,
+      "horarioApertura": horarioApertura,
+      "horarioCierre": horarioCierre,
+      "precioPromedio": precioPromedio,
+      "categoria": categoria,
+      "menuURL": menuUrl,
+      "fechaRegistro": fechaRegistro,
+      "activo": activo,
+    };
+
+    final response = await _apiServices.request(
+      method: 'PUT',
+      endpoint: 'http://192.168.107.81:8000/api/restaurants/',
+      data: payload,
+    );
+
+    debugPrint("📡 Actualización restaurante: ${jsonEncode(response.data)}");
+
+    if (response.data['type'] == 'SUCCESS') {
+      return response.data['result'];
+    } else {
+      throw Exception(response.data['message'] ?? 'Error desconocido');
+    }
+  }
+
   Future<void> _saveAuthData(String token, String role, String email) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(StorageKeys.token, token);
