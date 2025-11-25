@@ -65,7 +65,6 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<Message> register(@RequestBody UserDTO userDTO) {
-        userDTO.setTipoUsuario(utez.edu.mx.food.model.user.UserBean.TipoUsuario.NORMAL);
         userDTO.setActivo(Boolean.valueOf(true));
 
         return userService.save(userDTO);
