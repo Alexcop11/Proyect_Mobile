@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:rating_app/core/providers/auth_provider.dart';
+import 'package:rating_app/screens/restaurant_manage_screen.dart';
+import 'package:rating_app/screens/restaurant_screen.dart';
 import 'package:rating_app/widgets/nav-bar.dart';
 
 class Navigationscaffold extends StatelessWidget {

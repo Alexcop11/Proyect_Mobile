@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:rating_app/core/providers/auth_provider.dart';
+import 'package:rating_app/core/services/auth_service.dart';
 import 'package:rating_app/screens/edit_restaurant.dart';
 import 'package:rating_app/screens/login_screen.dart';
 import 'package:rating_app/screens/register_restaurant.dart';
@@ -8,8 +9,52 @@ import 'package:rating_app/screens/restaurant_screen.dart';
 import 'package:rating_app/widgets/NavigationScaffold.dart';
 import 'package:rating_app/screens/auth_wrapper.dart';
 
-class Restaurant_manage_Screen extends StatelessWidget {
+class Restaurant_manage_Screen extends StatefulWidget {
   const Restaurant_manage_Screen({super.key});
+
+  @override
+  State<Restaurant_manage_Screen> createState() =>
+      _Restaurant_manage_ScreenState();
+}
+
+class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
+  late final AuthService _authService;
+  Map<String, dynamic>? ownerData;
+
+  Future<void> cargarDatosPropietario() async {
+    try {
+      final email = Provider.of<AuthProvider>(context, listen: false).email;
+      if (email != null) {
+        final response = await _authService.getUser(email);
+        final propietario = response['usuarioPropietario'] ?? response;
+
+        setState(() {
+          ownerData = {
+            "idUsuario": propietario['idUsuario'],
+            "email": propietario['email'],
+            "tipousuario": propietario['tipoUsuario'],
+            "nombre": propietario['nombre'],
+            "apellido": propietario['apellido'],
+            "telefono": propietario['telefono'],
+            "fechaRegistro": propietario['fechaRegistro'],
+            "activo": propietario['activo'],
+            "ultimoLogin": propietario['ultimoLogin'],
+          };
+        });
+      }
+    } catch (e) {
+      debugPrint("Error al cargar propietario: $e");
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final email = Provider.of<AuthProvider>(context, listen: false).email;
+      if (email != null) cargarDatosPropietario();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -86,8 +131,59 @@ class Restaurant_manage_Screen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      //Restaurante
                       Card(
+                        elevation: 0,
+                        margin: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.restaurant,
+                                    color: Colors.redAccent,
+                                    size: 28,
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Center(
+                                      child: Text(
+                                        "Información del Usuario",
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.edit,
+                                    color: Colors.redAccent,
+                                    size: 24,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            _buildOwnerCard(
+                              "${restaurantData!['usuarioPropietario']['nombre'] ?? ''} ${restaurantData!['usuarioPropietario']['apellido'] ?? ''}",
+                              restaurantData['usuarioPropietario']['email'] ??
+                                  '',
+                              restaurantData['usuarioPropietario']['telefono'] ??
+                                  'No disponible',
+                            ),
+                          ],
+                        ),
+                      ),
+                      Card(
+                        elevation: 0,
                         margin: const EdgeInsets.symmetric(vertical: 12),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -98,8 +194,8 @@ class Restaurant_manage_Screen extends StatelessWidget {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Padding(
-                                  padding: const EdgeInsets.only(left: 12),
+                                const Padding(
+                                  padding: EdgeInsets.only(left: 12),
                                   child: Icon(
                                     Icons.restaurant,
                                     color: Colors.redAccent,
@@ -131,33 +227,26 @@ class Restaurant_manage_Screen extends StatelessWidget {
                               ],
                             ),
                             const SizedBox(height: 12),
-                            _buildCard("Nombre", restaurantData['nombre']),
-                            _buildCard(
-                              "Descripción",
-                              restaurantData['descripcion'],
+                            _infobuild(
+                              "Nombre",
+                              restaurantData["nombre"],
+                              restaurantData["descripcion"],
                             ),
-                            _buildCard(
+                            _infodirection(
                               "Dirección",
                               restaurantData['direccion'],
                             ),
-                            _buildCard("Teléfono", restaurantData['telefono']),
-                            _buildCard(
-                              "Horario Apertura",
+                            _infoTime(
+                              "Horario",
                               restaurantData['horarioApertura'],
-                            ),
-                            _buildCard(
-                              "Horario Cierre",
                               restaurantData['horarioCierre'],
                             ),
+                            _infophone("Teléfono", restaurantData['telefono']),
                             _buildCard(
-                              "Precio Promedio",
+                              "Info Extra",
                               restaurantData['precioPromedio'].toString(),
-                            ),
-                            _buildCard(
-                              "Categoría",
                               restaurantData['categoria'],
                             ),
-                            _buildCard("Menú URL", restaurantData['menuUrl']),
                           ],
                         ),
                       ),
@@ -172,13 +261,289 @@ class Restaurant_manage_Screen extends StatelessWidget {
     );
   }
 
-  Widget _buildCard(String title, String? value) {
+  Widget _buildOwnerCard(String? nombre, String? correo, String? telefono) {
     return Card(
-      elevation: 0,
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      child: ListTile(
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(value ?? "No disponible"),
+      elevation: 0.5,
+      margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 12),
+            if (nombre != null)
+              Text("Nombre: $nombre", style: const TextStyle(fontSize: 16)),
+            if (correo != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  "Correo Electrónico: $correo",
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ),
+            if (telefono != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  "Teléfono: ${telefono.isEmpty ? 'No disponible' : telefono}",
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCard(String title, String? value, String? value2) {
+    return Card(
+      elevation: 0.5,
+      margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.local_offer,
+                  color: Colors.redAccent,
+                  size: 28,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (value != null && value.isNotEmpty)
+              Text(
+                "Precio Promedio: \$${value}",
+                style: const TextStyle(fontSize: 16, color: Colors.black87),
+              ),
+            if (value2 != null && value2.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  "Categoría: $value2",
+                  style: const TextStyle(fontSize: 16, color: Colors.black87),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infoTime(String title, String? value, String? value_2) {
+    return Card(
+      elevation: 0.5,
+      shadowColor: Colors.black.withOpacity(0.3),
+      margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[100], // fondo elegante
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.watch, color: Colors.redAccent, size: 28),
+                const SizedBox(width: 12),
+                Text(
+                  "Horas de servicio",
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              "Apertura: ${value}" ?? "No disponible",
+              style: const TextStyle(
+                fontSize: 16,
+                fontStyle: FontStyle.normal,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              "Cierre: ${value_2}" ?? "No disponible",
+              style: const TextStyle(
+                fontSize: 16,
+                fontStyle: FontStyle.normal,
+                color: Colors.black87,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infophone(String title, String? value) {
+    return Card(
+      elevation: 0.5,
+      shadowColor: Colors.black.withOpacity(0.3),
+      margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[100], // fondo elegante
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.phone_in_talk,
+                  color: Colors.redAccent,
+                  size: 28,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  "Telefono",
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              value ?? "No disponible",
+              style: const TextStyle(
+                fontSize: 16,
+                fontStyle: FontStyle.normal,
+                color: Colors.black87,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infodirection(String title, String? value) {
+    return Card(
+      elevation: 0.5,
+      shadowColor: Colors.black.withOpacity(0.3),
+      margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[100], // fondo elegante
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.location_city,
+                  color: Colors.redAccent,
+                  size: 28,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  "Ubicacion",
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              value ?? "No disponible",
+              style: const TextStyle(
+                fontSize: 16,
+                fontStyle: FontStyle.normal,
+                color: Colors.black87,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infobuild(String title, String? value, String? value_2) {
+    return Card(
+      elevation: 0.5,
+      shadowColor: Colors.black.withOpacity(0.3),
+      margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey[100], // fondo elegante
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.restaurant_menu,
+                  color: Colors.redAccent,
+                  size: 28,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  value ?? "No disponible",
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text("Descripcion"),
+            const SizedBox(height: 12),
+            Text(
+              value_2 ?? "No disponible",
+              style: const TextStyle(
+                fontSize: 16,
+                fontStyle: FontStyle.normal,
+                color: Colors.black87,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

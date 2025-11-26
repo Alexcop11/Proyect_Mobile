@@ -165,7 +165,7 @@ class AuthService {
   Future<Map<String, dynamic>?> getRestaurantByEmail(String email) async {
     final response = await _apiServices.request(
       method: 'GET',
-      endpoint: 'http://192.168.105.21:8000/api/restaurants/owner/$email',
+      endpoint: 'http://192.168.105.198:8000/api/restaurants/owner/$email',
     );
 
     final data = response.data;
