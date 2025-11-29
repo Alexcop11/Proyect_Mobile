@@ -46,7 +46,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public ResponseEntity<Message> findById(Integer id) {
         Optional<UserBean> user = userRepository.findById(id);
-        if (!user.isPresent()) {
+        if (user.isEmpty()) {
             return new ResponseEntity<>(new Message("Usuario no encontrado", TypesResponse.ERROR), HttpStatus.NOT_FOUND);
         }
         logger.info("Usuario encontrado correctamente");
@@ -116,7 +116,7 @@ public class UserService {
     @Transactional(rollbackFor = {SQLException.class})
     public ResponseEntity<Message> update(UserDTO dto) {
         Optional<UserBean> userOptional = userRepository.findById(dto.getIdUsuario());
-        if (!userOptional.isPresent()) {
+        if (userOptional.isEmpty()) {
             return new ResponseEntity<>(new Message("Usuario no encontrado", TypesResponse.ERROR), HttpStatus.NOT_FOUND);
         }
 
@@ -158,7 +158,7 @@ public class UserService {
     @Transactional(rollbackFor = {SQLException.class})
     public ResponseEntity<Message> changeStatus(Integer id) {
         Optional<UserBean> userOptional = userRepository.findById(id);
-        if (!userOptional.isPresent()) {
+        if (userOptional.isEmpty()) {
             return new ResponseEntity<>(new Message("Usuario no encontrado", TypesResponse.ERROR), HttpStatus.NOT_FOUND);
         }
 
@@ -178,10 +178,30 @@ public class UserService {
     @Transactional(readOnly = true)
     public ResponseEntity<Message> findByEmail(String email) {
         Optional<UserBean> user = userRepository.findByEmail(email);
-        if (!user.isPresent()) {
+        if (user.isEmpty()) {
             return new ResponseEntity<>(new Message("Usuario no encontrado", TypesResponse.ERROR), HttpStatus.NOT_FOUND);
         }
         return new ResponseEntity<>(new Message(user.get(), "Usuario encontrado", TypesResponse.SUCCESS), HttpStatus.OK);
+    }
+
+    @Transactional
+    public ResponseEntity<Message> updatePassword(Integer id, String password) {
+        Optional<UserBean> user = userRepository.findById(id);
+        UserBean userBean = user.get();
+
+        if (userBean.getPasswordHash() == null || userBean.getPasswordHash().length() < 6) {
+            return new ResponseEntity<>(new Message("La contraseña debe tener al menos 6 caracteres", TypesResponse.WARNING), HttpStatus.BAD_REQUEST);
+        }
+
+        if (user.isEmpty()) {
+            return new ResponseEntity<>(new Message("Usuario no encontrado", TypesResponse.ERROR), HttpStatus.NOT_FOUND);
+        }
+
+        String hashedPassword = passwordEncoder.encode(password);
+        userBean.setPasswordHash(hashedPassword);
+
+        return new ResponseEntity<>(new Message(user.get(), "Contraseña actualizada correctamente", TypesResponse.SUCCESS), HttpStatus.OK);
+
     }
 
     @Transactional(readOnly = true)
