@@ -1,9 +1,9 @@
 package utez.edu.mx.food.controller.user;
 
+import utez.edu.mx.food.service.user.UserChangeDTO;
 import utez.edu.mx.food.service.user.UserDTO;
 import utez.edu.mx.food.service.user.UserService;
 import utez.edu.mx.food.utils.Message;
-import utez.edu.mx.food.utils.TypesResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,4 +55,10 @@ public class UserController {
         logger.info("Cambiando estado del usuario con ID: {}", id);
         return userService.changeStatus(id);
     }
+
+    @PatchMapping("/change-password")
+        public ResponseEntity<Message> changeUserPassword (@RequestBody UserChangeDTO dto){
+            return userService.updatePassword(dto.getId(), dto.getPassword());
+        }
+
 }
