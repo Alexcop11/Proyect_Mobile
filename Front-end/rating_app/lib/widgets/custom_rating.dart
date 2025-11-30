@@ -4,7 +4,7 @@ class custom_rating extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final String title;
-  final int count;
+  final String count;
 
   const custom_rating({
     super.key,

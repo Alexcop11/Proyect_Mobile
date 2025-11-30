@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:rating_app/core/providers/auth_provider.dart';
 import 'package:rating_app/core/services/auth_service.dart';
 import 'package:rating_app/screens/edit_restaurant.dart';
+import 'package:rating_app/screens/edit_user_restaurant.dart';
 import 'package:rating_app/screens/login_screen.dart';
 import 'package:rating_app/screens/register_restaurant.dart';
+import 'package:rating_app/screens/restaurant_reviews.dart';
 import 'package:rating_app/screens/restaurant_screen.dart';
 import 'package:rating_app/widgets/NavigationScaffold.dart';
 import 'package:rating_app/screens/auth_wrapper.dart';
@@ -20,41 +22,6 @@ class Restaurant_manage_Screen extends StatefulWidget {
 class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
   late final AuthService _authService;
   Map<String, dynamic>? ownerData;
-
-  Future<void> cargarDatosPropietario() async {
-    try {
-      final email = Provider.of<AuthProvider>(context, listen: false).email;
-      if (email != null) {
-        final response = await _authService.getUser(email);
-        final propietario = response['usuarioPropietario'] ?? response;
-
-        setState(() {
-          ownerData = {
-            "idUsuario": propietario['idUsuario'],
-            "email": propietario['email'],
-            "tipousuario": propietario['tipoUsuario'],
-            "nombre": propietario['nombre'],
-            "apellido": propietario['apellido'],
-            "telefono": propietario['telefono'],
-            "fechaRegistro": propietario['fechaRegistro'],
-            "activo": propietario['activo'],
-            "ultimoLogin": propietario['ultimoLogin'],
-          };
-        });
-      }
-    } catch (e) {
-      debugPrint("Error al cargar propietario: $e");
-    }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final email = Provider.of<AuthProvider>(context, listen: false).email;
-      if (email != null) cargarDatosPropietario();
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -92,9 +59,11 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
                     );
                     break;
                   case 1:
-                    Navigator.pushReplacementNamed(
+                    Navigator.push(
                       context,
-                      '/RestaurantReseñas',
+                      MaterialPageRoute(
+                        builder: (context) => const RestaurantReviews(),
+                      ),
                     );
                     break;
                   case 2:
@@ -163,10 +132,30 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
                                       ),
                                     ),
                                   ),
-                                  const Icon(
-                                    Icons.edit,
-                                    color: Colors.redAccent,
-                                    size: 24,
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.edit,
+                                      color: Colors.redAccent,
+                                    ),
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => EditProfileScreen(
+                                            idUsuario:
+                                                restaurantData!['usuarioPropietario']['idUsuario'],
+                                            nombre:
+                                                restaurantData!['usuarioPropietario']['nombre'],
+                                            apellido:
+                                                restaurantData!['usuarioPropietario']['apellido'],
+                                            email:
+                                                restaurantData!['usuarioPropietario']['email'],
+                                            telefono:
+                                                restaurantData!['usuarioPropietario']['telefono'],
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
                                 ],
                               ),

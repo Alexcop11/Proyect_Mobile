@@ -26,6 +26,7 @@ class AuthService {
         final token = responseData['data']['token'];
         final role = responseData['data']['role'];
         final email = responseData['data']['email'];
+
         await _saveAuthData(token, role, email);
         return {"token": token, "role": role, "email": email};
       } else {
@@ -162,10 +163,40 @@ class AuthService {
     }
   }
 
+  Future<Map<String, dynamic>> updateUser({
+    required int idUsuario,
+    required String email,
+    required String nombre,
+    required String apellido,
+    required String telefono,
+  }) async {
+    final payload = {
+      "idUsuario": idUsuario,
+      "email": email,
+      "nombre": nombre,
+      "apellido": apellido,
+      "telefono": telefono,
+    };
+
+    final response = await _apiServices.request(
+      method: 'PUT',
+      endpoint: 'http://192.168.0.17:8000/api/users/',
+      data: payload,
+    );
+
+    debugPrint("Actualización usuario: ${jsonEncode(response.data)}");
+
+    if (response.data['type'] == 'SUCCESS') {
+      return response.data['result'];
+    } else {
+      throw Exception(response.data['message'] ?? 'Error desconocido');
+    }
+  }
+
   Future<Map<String, dynamic>?> getRestaurantByEmail(String email) async {
     final response = await _apiServices.request(
       method: 'GET',
-      endpoint: 'http://192.168.105.198:8000/api/restaurants/owner/$email',
+      endpoint: 'http://192.168.0.17:8000/api/restaurants/owner/$email',
     );
 
     final data = response.data;
@@ -175,6 +206,102 @@ class AuthService {
       return data['result'];
     }
     return null;
+  }
+
+  Future<int?> getFavoritesCount(int idRestaurante) async {
+    try {
+      final response = await _apiServices.request(
+        method: 'GET',
+        endpoint:
+            'http://192.168.0.17:8000/api/favorites/restaurant/$idRestaurante/count',
+      );
+
+      final data = response.data;
+      debugPrint("📡 Favoritos: ${jsonEncode(data)}");
+
+      if (data['type'] == 'SUCCESS' && data['result'] != null) {
+        return int.tryParse(data['result'].toString());
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint("Error en getFavoritesCount: $e");
+      return null;
+    }
+  }
+
+  Future<int?> getReviewsCount(int idRestaurante) async {
+    try {
+      final response = await _apiServices.request(
+        method: 'GET',
+        endpoint:
+            'http://192.168.0.17:8000/api/ratings/restaurant/$idRestaurante',
+      );
+
+      final data = response.data;
+      debugPrint("📡 Reviews: ${jsonEncode(data)}");
+
+      if (data['type'] == 'SUCCESS' && data['result'] != null) {
+        final List<dynamic> reviews = data['result'];
+        return reviews.length;
+      }
+      return 0;
+    } catch (e) {
+      debugPrint("Error en getReviewsCount: $e");
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getReviewsSummary(int idRestaurante) async {
+    try {
+      final response = await _apiServices.request(
+        method: 'GET',
+        endpoint:
+            'http://192.168.0.17:8000/api/ratings/restaurant/$idRestaurante',
+      );
+
+      final data = response.data;
+      if (data['type'] == 'SUCCESS' && data['result'] != null) {
+        final List<dynamic> reviews = data['result'];
+
+        if (reviews.isEmpty) {
+          return {"average": 0.0, "count": 0};
+        }
+        double total = 0;
+        for (var r in reviews) {
+          total +=
+              (r['puntuacionComida'] ?? 0) +
+              (r['puntuacionServicio'] ?? 0) +
+              (r['puntuacionAmbiente'] ?? 0);
+        }
+        double average = total / (reviews.length * 3);
+        return {"average": average, "count": reviews.length};
+      }
+
+      return {"average": 0.0, "count": 0};
+    } catch (e) {
+      debugPrint("Error en getReviewsSummary: $e");
+      return {"average": 0.0, "count": 0};
+    }
+  }
+
+  Future<List<dynamic>> getReviews(int idRestaurante) async {
+    try {
+      final response = await _apiServices.request(
+        method: 'GET',
+        endpoint:
+            'http://192.168.0.17:8000/api/ratings/restaurant/$idRestaurante',
+      );
+
+      final data = response.data;
+      if (data['type'] == 'SUCCESS' && data['result'] != null) {
+        return data['result']; 
+      }
+      return [];
+    } catch (e) {
+      debugPrint("Error en getReviews: $e");
+      return [];
+    }
   }
 
   Future<Map<String, dynamic>> updateRestaurant({
@@ -214,7 +341,7 @@ class AuthService {
 
     final response = await _apiServices.request(
       method: 'PUT',
-      endpoint: 'http://192.168.107.81:8000/api/restaurants/',
+      endpoint: 'http://192.168.0.17:8000/api/restaurants/',
       data: payload,
     );
 
@@ -241,9 +368,11 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(StorageKeys.token);
     await prefs.remove(StorageKeys.role);
+    await prefs.remove(StorageKeys.email);
 
     _apiServices.cleanToken();
     _apiServices.cleanRole();
+    _apiServices.cleanEmail();
   }
 
   Future<String?> getStoredToken() async {

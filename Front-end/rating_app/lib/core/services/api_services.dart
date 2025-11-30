@@ -98,4 +98,5 @@ class ApiServices {
   void cleanEmail() {
     _email = null;
   }
+
 }

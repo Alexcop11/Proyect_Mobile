@@ -10,6 +10,7 @@ class AuthProvider with ChangeNotifier {
   String? _token;
   String? _role;
   String? _email;
+  String? _id;
   String? _nombre;
   String? _apellido;
   String? _errorMessage;
@@ -17,6 +18,7 @@ class AuthProvider with ChangeNotifier {
   String? get token => _token;
   String? get role => _role;
   String? get email => _email;
+  String? get id => _id;
   String? get nombre => _nombre;
   String? get apellido => _apellido;
   String? get errorMessage => _errorMessage;
@@ -46,18 +48,20 @@ class AuthProvider with ChangeNotifier {
         _role = null;
         _token = null;
         _email = null;
+        _id = null;
       }
     } catch (_) {
       _isAuthenticated = false;
       _role = null;
       _token = null;
       _email = null;
+      _id = null;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
-  
+
   Future<bool> login(String email, String password) async {
     _isLoading = true;
     notifyListeners();
@@ -71,6 +75,7 @@ class AuthProvider with ChangeNotifier {
       final userData = await _authService.getUser(_email!);
       _nombre = userData['nombre'];
       _apellido = userData['apellido'];
+      _id = userData['idUsuario'];
 
       notifyListeners();
       return true;
@@ -275,15 +280,41 @@ class AuthProvider with ChangeNotifier {
   Future<Map<String, dynamic>?> checkRestaurantStatus(String email) async {
     try {
       final restaurantData = await _authService.getRestaurantByEmail(email);
-      debugPrint("📥 Respuesta: ${jsonEncode(restaurantData)}");
 
-      return restaurantData;
+      if (restaurantData != null) {
+        final favorites = await _authService.getFavoritesCount(
+          restaurantData["idRestaurante"],
+        );
+        final reviews = await _authService.getReviewsCount(
+          restaurantData["idRestaurante"],
+        );
+        final reviewsSummary = await _authService.getReviewsSummary(
+          restaurantData["idRestaurante"],
+        );
+        final getReviews = await _authService.getReviews(
+          restaurantData["idRestaurante"],
+        );
+
+        final result = {
+          ...restaurantData,
+          "favoritesCount": favorites,
+        "reviewsCount": reviews,
+        "reviewsSummary": reviewsSummary, 
+        "reviews": getReviews,
+        };
+
+        debugPrint("📥 Respuesta: ${jsonEncode(result)}");
+        return result;
+      }
+
+      return null;
     } catch (e) {
       _errorMessage = e.toString();
       notifyListeners();
       return null;
     }
   }
+  
 
   Future<void> logout() async {
     await _authService.logout();
