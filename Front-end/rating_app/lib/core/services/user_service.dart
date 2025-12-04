@@ -1,9 +1,6 @@
-// lib/core/services/user_service.dart
 import 'package:flutter/material.dart';
 import 'package:rating_app/core/services/api_services.dart';
 import 'package:rating_app/models/user.dart';
-import '../utils/constants.dart';
-
 class UserService {
   final ApiServices _apiServices;
 
@@ -16,7 +13,7 @@ class UserService {
       
       final response = await _apiServices.request(
         method: 'GET',
-        endpoint: 'http://192.168.110.190:8000/api/users/email/$email',
+        endpoint: 'http://192.168.1.72:8000/api/users/email/$email',
       );
 
       debugPrint('📥 Respuesta getUserByEmail: ${response.data}');
@@ -45,7 +42,7 @@ class UserService {
     try {
       final response = await _apiServices.request(
         method: 'GET',
-        endpoint: 'http://192.168.110.190:8000/api/users/$id',
+        endpoint: 'http://192.168.1.72:8000/api/users/$id',
       );
 
       if (response.data['type'] == 'SUCCESS' && response.data['result'] != null) {
@@ -78,7 +75,7 @@ class UserService {
       
       final response = await _apiServices.request(
         method: 'PUT',
-        endpoint: 'http://192.168.110.190:8000/api/users/',
+        endpoint: 'http://192.168.1.72:8000/api/users/',
         data: {
           'idUsuario': idUsuario,
           'nombre': nombre,
@@ -112,7 +109,7 @@ class UserService {
     try {
       final response = await _apiServices.request(
         method: 'PATCH',
-        endpoint: 'http://192.168.110.190:8000/api/users/$idUsuario/change-password',
+        endpoint: 'http://192.168.1.72:8000/api/users/$idUsuario/change-password',
         data: {
           'password': newPassword,
         },

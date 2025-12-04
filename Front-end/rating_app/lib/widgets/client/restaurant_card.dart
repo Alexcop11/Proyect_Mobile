@@ -1,73 +1,135 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:rating_app/models/restaurant.dart';
+import 'package:rating_app/core/providers/auth_provider.dart';
+import 'package:rating_app/core/providers/favorite_provider.dart';
+import 'package:rating_app/screens/client/restaurant_detail_page.dart';
 
-class RestaurantCard extends StatefulWidget {
-  final String nombre;
-  final String tipo;
-  final double calificacion;
-  final int reviews;
-  final String ubicacion;
-  final String distancia;
-  final String tiempo;
-  final String foto;
-  final bool isFavorite;
-  final bool isOpen; 
-  final ValueChanged<bool>? onFavoriteTap;
-  final VoidCallback? onVerRestaurante;
+class RestaurantCard extends StatelessWidget {
+  final Restaurant restaurant;
 
   const RestaurantCard({
     Key? key,
-    required this.nombre,
-    required this.tipo,
-    required this.calificacion,
-    required this.reviews,
-    required this.ubicacion,
-    required this.distancia,
-    required this.tiempo,
-    required this.foto,
-    required this.isFavorite,
-    this.isOpen = false,
-    this.onFavoriteTap,
-    this.onVerRestaurante,
+    required this.restaurant,
   }) : super(key: key);
 
-  @override
-  State<RestaurantCard> createState() => _RestaurantCardState();
-}
+  Future<void> _handleFavoriteTap(BuildContext context) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final favoriteProvider = Provider.of<FavoriteProvider>(context, listen: false);
 
-class _RestaurantCardState extends State<RestaurantCard> {
-  late bool _isFavorite;
+    if (authProvider.currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Debes iniciar sesión para agregar favoritos'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
 
-  @override
-  void initState() {
-    super.initState();
-    _isFavorite = widget.isFavorite;
+    final restaurantId = restaurant.idRestaurante;
+    if (restaurantId == null) return;
+
+    final isFavorite = favoriteProvider.isFavorite(restaurantId);
+
+    final success = await favoriteProvider.toggleFavorite(
+      userId: authProvider.currentUser!.idUsuario!,
+      restaurantId: restaurantId,
+    );
+
+    if (success && context.mounted) {
+      final message = !isFavorite
+          ? 'Restaurante agregado a favoritos'
+          : 'Restaurante eliminado de favoritos';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: const Color(0xFFFF6B6B),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } else if (!success && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            favoriteProvider.errorMessage ?? 'Error al actualizar favorito',
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
+ void _navigateToDetail(BuildContext context, bool isFavorite) {
+  String horarioCompleto = '';
+  if (restaurant.horarioApertura.isNotEmpty && 
+      restaurant.horarioCierre.isNotEmpty) {
+    horarioCompleto = '${restaurant.horarioApertura} - ${restaurant.horarioCierre}';
+  }
+
+  String status = 'Cerrado';
+  if (restaurant.isOpenNow) {
+    status = 'Abierto • Cierra a las ${restaurant.horarioCierre}';
+  }
+
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => RestaurantDetailPage(
+        restaurantId: restaurant.idRestaurante!,
+        nombre: restaurant.nombre,
+        tipo: restaurant.categoria,
+        calificacion: restaurant.calificacionPromedio ?? 0.0,
+        reviews: restaurant.numeroReviews ?? 0,
+        ubicacion: restaurant.direccion,
+        foto: restaurant.menuUrl.isNotEmpty
+            ? restaurant.menuUrl
+            : 'assets/images/restaurant_placeholder.jpg',
+        isOpen: restaurant.isOpenNow,
+        status: status,
+        description: restaurant.descripcion,
+        phone: restaurant.telefono,
+        horario: horarioCompleto,
+        precioPromedio: restaurant.precioPromedio,
+      ),
+    ),
+  );
+}
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.grey[300]!,
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Imagen y Favorito
-          _buildImageSection(),
-          // Información
-          _buildInfoSection(),
-        ],
-      ),
+    return Consumer<FavoriteProvider>(
+      builder: (context, favoriteProvider, child) {
+        final restaurantId = restaurant.idRestaurante;
+        final isFavorite = restaurantId != null 
+            ? favoriteProvider.isFavorite(restaurantId)
+            : false;
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.grey[300]!,
+              width: 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildImageSection(context, isFavorite),
+              _buildInfoSection(context, isFavorite),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildImageSection() {
+  Widget _buildImageSection(BuildContext context, bool isFavorite) {
     return Stack(
       children: [
         ClipRRect(
@@ -80,7 +142,9 @@ class _RestaurantCardState extends State<RestaurantCard> {
             width: double.infinity,
             color: const Color(0xFFE8E8E8),
             child: Image.asset(
-              widget.foto,
+              restaurant.menuUrl.isNotEmpty
+                  ? restaurant.menuUrl
+                  : 'assets/images/restaurante.jpg',
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
                 return Container(
@@ -97,7 +161,7 @@ class _RestaurantCardState extends State<RestaurantCard> {
           ),
         ),
         // Badge "Abierto ahora"
-        if (widget.isOpen)
+        if (restaurant.isOpenNow)
           Positioned(
             top: 12,
             left: 12,
@@ -133,12 +197,7 @@ class _RestaurantCardState extends State<RestaurantCard> {
           top: 12,
           right: 12,
           child: GestureDetector(
-            onTap: () {
-              setState(() {
-                _isFavorite = !_isFavorite;
-              });
-              widget.onFavoriteTap?.call(_isFavorite);
-            },
+            onTap: () => _handleFavoriteTap(context),
             child: Container(
               width: 48,
               height: 48,
@@ -153,7 +212,7 @@ class _RestaurantCardState extends State<RestaurantCard> {
                 ],
               ),
               child: Icon(
-                _isFavorite ? Icons.favorite : Icons.favorite_border,
+                isFavorite ? Icons.favorite : Icons.favorite_border,
                 color: const Color(0xFFFF6B6B),
                 size: 24,
               ),
@@ -164,7 +223,7 @@ class _RestaurantCardState extends State<RestaurantCard> {
     );
   }
 
-  Widget _buildInfoSection() {
+  Widget _buildInfoSection(BuildContext context, bool isFavorite) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -172,7 +231,7 @@ class _RestaurantCardState extends State<RestaurantCard> {
         children: [
           // Nombre del restaurante
           Text(
-            widget.nombre,
+            restaurant.nombre,
             style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -188,7 +247,7 @@ class _RestaurantCardState extends State<RestaurantCard> {
             children: [
               Expanded(
                 child: Text(
-                  widget.tipo,
+                  restaurant.categoria,
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[700],
@@ -201,9 +260,9 @@ class _RestaurantCardState extends State<RestaurantCard> {
             ],
           ),
           const SizedBox(height: 4),
-          // Precio promedio (si lo necesitas, sino elimina esta línea)
+          // Precio promedio
           Text(
-            'Precio Promedio',
+            '\$${restaurant.precioPromedio.toStringAsFixed(0)} MXN promedio',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[700],
@@ -215,7 +274,7 @@ class _RestaurantCardState extends State<RestaurantCard> {
           _buildLocationRow(),
           const SizedBox(height: 16),
           // Botón Ver Restaurante
-          _buildVerRestauranteButton(),
+          _buildVerRestauranteButton(context, isFavorite),
         ],
       ),
     );
@@ -232,7 +291,7 @@ class _RestaurantCardState extends State<RestaurantCard> {
         ),
         const SizedBox(width: 4),
         Text(
-          '${widget.calificacion}',
+          '${restaurant.calificacionPromedio ?? 0.0}',
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -241,7 +300,7 @@ class _RestaurantCardState extends State<RestaurantCard> {
         ),
         const SizedBox(width: 4),
         Text(
-          '(${widget.reviews})',
+          '(${restaurant.numeroReviews ?? 0})',
           style: TextStyle(
             fontSize: 14,
             color: Colors.grey[600],
@@ -255,15 +314,15 @@ class _RestaurantCardState extends State<RestaurantCard> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
+        const Icon(
           Icons.location_on,
           size: 18,
-          color: const Color(0xFFFF6B6B),
+          color: Color(0xFFFF6B6B),
         ),
         const SizedBox(width: 6),
         Expanded(
           child: Text(
-            widget.ubicacion,
+            restaurant.direccion,
             style: const TextStyle(
               fontSize: 14,
               color: Color(0xFF666666),
@@ -276,12 +335,12 @@ class _RestaurantCardState extends State<RestaurantCard> {
     );
   }
 
-  Widget _buildVerRestauranteButton() {
+  Widget _buildVerRestauranteButton(BuildContext context, bool isFavorite) {
     return SizedBox(
       width: double.infinity,
       height: 48,
       child: ElevatedButton(
-        onPressed: widget.onVerRestaurante ?? () {},
+        onPressed: () => _navigateToDetail(context, isFavorite),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFFFF6B6B),
           shape: RoundedRectangleBorder(

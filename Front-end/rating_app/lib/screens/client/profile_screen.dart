@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:rating_app/core/providers/auth_provider.dart';
-import 'package:rating_app/core/services/user_service.dart';
 import 'package:rating_app/models/user.dart';
 import 'package:rating_app/widgets/common/app_bar_custom.dart';
 import 'package:rating_app/widgets/client/profile_header.dart';

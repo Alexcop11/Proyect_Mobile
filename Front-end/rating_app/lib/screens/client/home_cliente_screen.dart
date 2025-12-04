@@ -7,7 +7,6 @@ import 'package:rating_app/widgets/client/welcome_card.dart';
 import 'package:rating_app/widgets/client/search.dart';
 import 'package:rating_app/widgets/client/restaurant_card.dart';
 import 'package:rating_app/core/providers/favorite_provider.dart';
-import 'package:rating_app/screens/client/restaurant_detail_page.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -56,73 +55,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-
-  void _onVerRestaurante(dynamic restaurant) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => RestaurantDetailPage(
-          nombre: restaurant.nombre,
-          tipo: restaurant.categoria,
-          calificacion: restaurant.calificacionPromedio ?? 0.0,
-          ubicacion: restaurant.direccion,
-          foto: restaurant.menuUrl.isNotEmpty
-              ? restaurant.menuUrl
-              : 'assets/images/restaurant_placeholder.jpg',
-          isFavorite: false, // Puedes verificar si está en favoritos
-          isOpen: restaurant.isOpenNow,
-          status: restaurant.isOpenNow
-              ? 'Abierto • Cierra a las 23:00'
-              : 'Cerrado',
-          description: restaurant.descripcion ?? 'Sin descripción disponible',
-          phone: restaurant.telefono ?? 'No disponible',
-          horario: restaurant.horario ?? '',
-          onFavoriteTap: (isFavorite) {
-            _onFavoriteTap(restaurant.idRestaurante!, isFavorite);
-          },
-        ),
-      ),
-    );
-  }
-
-  Future<void> _onFavoriteTap(int restaurantId, bool isFavorite) async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final favoriteProvider = Provider.of<FavoriteProvider>(
-      context,
-      listen: false,
-    );
-
-    if (authProvider.currentUser == null) return;
-
-    final success = await favoriteProvider.toggleFavorite(
-      userId: authProvider.currentUser!.idUsuario!,
-      restaurantId: restaurantId,
-    );
-
-    if (success && mounted) {
-      final message = isFavorite
-          ? 'Restaurante agregado a favoritos'
-          : 'Restaurante eliminado de favoritos';
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: const Color(0xFFFF6B6B),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    } else if (!success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            favoriteProvider.errorMessage ?? 'Error al actualizar favorito',
-          ),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
   }
 
   @override
@@ -352,29 +284,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: nearbyRestaurants.map((restaurant) {
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: RestaurantCard(
-              nombre: restaurant.nombre,
-              tipo: restaurant.categoria,
-              calificacion: restaurant.calificacionPromedio ?? 0.0,
-              reviews: restaurant.numeroReviews ?? 0,
-              ubicacion: restaurant.direccion,
-              distancia: restaurant.getDistanceFrom(
-                0.0,
-                0.0,
-              ), // ← Cambiado a 0.0
-              tiempo: restaurant.getEstimatedTime(),
-              foto: restaurant.menuUrl.isNotEmpty
-                  ? restaurant.menuUrl
-                  : 'assets/images/restaurant_placeholder.jpg',
-              isFavorite: false,
-              isOpen: restaurant.isOpenNow,
-              onFavoriteTap: (isFavorite) {
-                _onFavoriteTap(restaurant.idRestaurante!, isFavorite);
-              },
-              onVerRestaurante: () {
-                _onVerRestaurante(restaurant);
-              },
-            ),
+            child: RestaurantCard(restaurant: restaurant),
           );
         }).toList(),
       ),
@@ -399,29 +309,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: restaurants.map((restaurant) {
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: RestaurantCard(
-              nombre: restaurant.nombre,
-              tipo: restaurant.categoria,
-              calificacion: restaurant.calificacionPromedio ?? 0.0,
-              reviews: restaurant.numeroReviews ?? 0,
-              ubicacion: restaurant.direccion,
-              distancia: restaurant.getDistanceFrom(
-                0.0,
-                0.0,
-              ), // ← Cambiado a 0.0
-              tiempo: restaurant.getEstimatedTime(),
-              foto: restaurant.menuUrl.isNotEmpty
-                  ? restaurant.menuUrl
-                  : 'assets/images/restaurant_placeholder.jpg',
-              isFavorite: false,
-              isOpen: restaurant.isOpenNow,
-              onFavoriteTap: (isFavorite) {
-                _onFavoriteTap(restaurant.idRestaurante!, isFavorite);
-              },
-              onVerRestaurante: () {
-                _onVerRestaurante(restaurant.idRestaurante!);
-              },
-            ),
+            child: RestaurantCard(restaurant: restaurant),
           );
         }).toList(),
       ),
