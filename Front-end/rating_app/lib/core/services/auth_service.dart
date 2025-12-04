@@ -30,7 +30,6 @@ class AuthService {
 
         await _saveAuthData(token, role, savedEmail);
         return {"token": token, "role": role, "email": savedEmail};
-        
       } else {
         final errorMessage = responseData['message'] ?? 'Credenciales incorrectas';
         throw Exception(errorMessage);
@@ -145,6 +144,7 @@ class AuthService {
 
     _apiServices.cleanToken();
     _apiServices.cleanRole();
+    _apiServices.cleanEmail();
   }
 
   Future<String?> getStoredToken() async {

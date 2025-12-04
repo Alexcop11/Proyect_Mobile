@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:rating_app/core/services/auth_service.dart';
 import 'package:rating_app/core/services/user_service.dart';
@@ -13,6 +12,7 @@ class AuthProvider with ChangeNotifier {
   String? _token;
   String? _role;
   String? _email;
+  String? _id;
   String? _nombre;
   String? _apellido;
   User? _currentUser;
@@ -21,6 +21,7 @@ class AuthProvider with ChangeNotifier {
   String? get token => _token;
   String? get role => _role;
   String? get email => _email;
+  String? get id => _id;
   String? get nombre => _nombre;
   String? get apellido => _apellido;
   User? get currentUser => _currentUser;
@@ -51,12 +52,14 @@ class AuthProvider with ChangeNotifier {
         _role = null;
         _token = null;
         _email = null;
+        _id = null;
       }
     } catch (_) {
       _isAuthenticated = false;
       _role = null;
       _token = null;
       _email = null;
+      _id = null;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -102,7 +105,7 @@ class AuthProvider with ChangeNotifier {
     }
     notifyListeners();
   }
-  
+
   Future<bool> login(String email, String password) async {
     _isLoading = true;
     notifyListeners();
@@ -117,6 +120,7 @@ class AuthProvider with ChangeNotifier {
       final userData = await _authService.getUser(_email!);
       _nombre = userData['nombre'];
       _apellido = userData['apellido'];
+      _id = userData['idUsuario'];
 
       await loadCurrentUser();
 
@@ -259,7 +263,7 @@ class AuthProvider with ChangeNotifier {
       }
 
       final userData = await _authService.getUser(_email!);
-      debugPrint("📥 Respuesta: ${jsonEncode(userData)}");
+      debugPrint("📥 Respuesta: $userData");
 
       _nombre = userData['nombre'];
       _apellido = userData['apellido'];
@@ -274,18 +278,15 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> logout() async {
-    debugPrint('👋 Cerrando sesión...');
     await _authService.logout();
     _token = null;
     _role = null;
     _email = null;
     _nombre = null;
     _apellido = null;
-    _isAuthenticated = false;
     _currentUser = null;
-    _errorMessage = null;
+    _id = null;
     notifyListeners();
-    debugPrint('✅ Sesión cerrada');
   }
 
   void clearError() {

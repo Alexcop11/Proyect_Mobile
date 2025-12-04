@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:rating_app/core/services/api_services.dart';
 import 'package:rating_app/core/utils/constants.dart';
 import 'package:rating_app/models/restaurant.dart';
+import 'package:rating_app/models/review.dart';
 
 class RestaurantService {
   final ApiServices _apiServices;
@@ -226,7 +227,7 @@ class RestaurantService {
     try {
       final response = await _apiServices.request(
         method: 'GET',
-        endpoint: '${Api_Constants.restaurantPoint}',
+        endpoint: Api_Constants.restaurantPoint,
         queryParameters: {
           'lat': latitude,
           'lng': longitude,
@@ -264,6 +265,233 @@ class RestaurantService {
       return responseData['type'] == 'SUCCESS';
     } catch (e) {
       debugPrint('❌ Error en deleteRestaurant: $e');
+      return false;
+    }
+  }
+
+  // ==================== MÉTODOS DE REVIEWS ====================
+
+  /// Obtener todas las reviews de un restaurante
+  Future<List<Review>> getReviews(int idRestaurante) async {
+    try {
+      final response = await _apiServices.request(
+        method: 'GET',
+        endpoint: '${Api_Constants.ratingsPoint}restaurant/$idRestaurante',
+      );
+
+      final responseData = response.data;
+      debugPrint("📡 getReviews: ${responseData['result']?.length ?? 0} reviews para restaurante $idRestaurante");
+
+      if (responseData['type'] == 'SUCCESS' && responseData['result'] != null) {
+        final List<dynamic> reviewsJson = responseData['result'];
+        return reviewsJson.map((json) => Review.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('❌ Error en getReviews: $e');
+      return [];
+    }
+  }
+
+  /// Obtener contador de reviews de un restaurante
+  Future<int> getReviewsCount(int idRestaurante) async {
+    try {
+      final reviews = await getReviews(idRestaurante);
+      return reviews.length;
+    } catch (e) {
+      debugPrint('❌ Error en getReviewsCount: $e');
+      return 0;
+    }
+  }
+
+  /// Obtener resumen de reviews (promedio y cantidad)
+  Future<Map<String, dynamic>> getReviewsSummary(int idRestaurante) async {
+    try {
+      final reviews = await getReviews(idRestaurante);
+
+      if (reviews.isEmpty) {
+        return {"average": 0.0, "count": 0};
+      }
+
+      double total = 0;
+      for (var review in reviews) {
+        total += ((review.puntuacionComida ?? 0) +
+                 (review.puntuacionServicio ?? 0) +
+                 (review.puntuacionAmbiente ?? 0)) / 3.0;
+      }
+      
+      double average = total / reviews.length;
+      
+      return {"average": average, "count": reviews.length};
+    } catch (e) {
+      debugPrint('❌ Error en getReviewsSummary: $e');
+      return {"average": 0.0, "count": 0};
+    }
+  }
+
+  /// Crear una nueva review
+  Future<Review?> createReview({
+    required int idUsuario,
+    required int idRestaurante,
+    required int puntuacionComida,
+    required int puntuacionServicio,
+    required int puntuacionAmbiente,
+    String? comentario,
+  }) async {
+    try {
+      final response = await _apiServices.request(
+        method: 'POST',
+        endpoint: Api_Constants.ratingsPoint,
+        data: {
+          'idUsuario': idUsuario,
+          'idRestaurante': idRestaurante,
+          'puntuacionComida': puntuacionComida,
+          'puntuacionServicio': puntuacionServicio,
+          'puntuacionAmbiente': puntuacionAmbiente,
+          'comentario': comentario,
+          'fechaCalificacion': DateTime.now().toIso8601String(),
+        },
+      );
+
+      final responseData = response.data;
+      debugPrint("📡 createReview: ${jsonEncode(responseData)}");
+
+      if (responseData['type'] == 'SUCCESS' && responseData['result'] != null) {
+        return Review.fromJson(responseData['result']);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('❌ Error en createReview: $e');
+      return null;
+    }
+  }
+
+  /// Actualizar una review existente
+  Future<Review?> updateReview(Review review) async {
+    try {
+      final response = await _apiServices.request(
+        method: 'PUT',
+        endpoint: Api_Constants.ratingsPoint,
+        data: review.toJson(),
+      );
+
+      final responseData = response.data;
+      debugPrint("📡 updateReview: ${jsonEncode(responseData)}");
+
+      if (responseData['type'] == 'SUCCESS' && responseData['result'] != null) {
+        return Review.fromJson(responseData['result']);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('❌ Error en updateReview: $e');
+      return null;
+    }
+  }
+
+  /// Eliminar una review
+  Future<bool> deleteReview(int idCalificacion) async {
+    try {
+      final response = await _apiServices.request(
+        method: 'DELETE',
+        endpoint: '${Api_Constants.ratingsPoint}$idCalificacion',
+      );
+
+      final responseData = response.data;
+      debugPrint("📡 deleteReview: ${jsonEncode(responseData)}");
+
+      return responseData['type'] == 'SUCCESS';
+    } catch (e) {
+      debugPrint('❌ Error en deleteReview: $e');
+      return false;
+    }
+  }
+
+  // ==================== MÉTODOS DE FAVORITOS ====================
+
+  /// Obtener contador de favoritos de un restaurante
+  Future<int> getFavoritesCount(int idRestaurante) async {
+    try {
+      final response = await _apiServices.request(
+        method: 'GET',
+        endpoint: '${Api_Constants.favoritePoint}restaurant/$idRestaurante/count',
+      );
+
+      final responseData = response.data;
+      debugPrint("📡 getFavoritesCount: ${jsonEncode(responseData)}");
+
+      if (responseData['type'] == 'SUCCESS' && responseData['result'] != null) {
+        return int.tryParse(responseData['result'].toString()) ?? 0;
+      }
+      return 0;
+    } catch (e) {
+      debugPrint('❌ Error en getFavoritesCount: $e');
+      return 0;
+    }
+  }
+
+  /// Agregar a favoritos
+  Future<bool> addToFavorites({
+    required int idUsuario,
+    required int idRestaurante,
+  }) async {
+    try {
+      final response = await _apiServices.request(
+        method: 'POST',
+        endpoint: Api_Constants.favoritePoint,
+        data: {
+          'idUsuario': idUsuario,
+          'idRestaurante': idRestaurante,
+          'fechaAgregado': DateTime.now().toIso8601String(),
+        },
+      );
+
+      final responseData = response.data;
+      debugPrint("📡 addToFavorites: ${jsonEncode(responseData)}");
+
+      return responseData['type'] == 'SUCCESS';
+    } catch (e) {
+      debugPrint('❌ Error en addToFavorites: $e');
+      return false;
+    }
+  }
+
+  /// Eliminar de favoritos
+  Future<bool> removeFromFavorites({
+    required int idUsuario,
+    required int idRestaurante,
+  }) async {
+    try {
+      final response = await _apiServices.request(
+        method: 'DELETE',
+        endpoint: '${Api_Constants.favoritePoint}user/$idUsuario/restaurant/$idRestaurante',
+      );
+
+      final responseData = response.data;
+      debugPrint("📡 removeFromFavorites: ${jsonEncode(responseData)}");
+
+      return responseData['type'] == 'SUCCESS';
+    } catch (e) {
+      debugPrint('❌ Error en removeFromFavorites: $e');
+      return false;
+    }
+  }
+
+  /// Verificar si un restaurante está en favoritos
+  Future<bool> isFavorite({
+    required int idUsuario,
+    required int idRestaurante,
+  }) async {
+    try {
+      final response = await _apiServices.request(
+        method: 'GET',
+        endpoint: '${Api_Constants.favoritePoint}user/$idUsuario/restaurant/$idRestaurante',
+      );
+
+      final responseData = response.data;
+      
+      return responseData['type'] == 'SUCCESS' && responseData['result'] != null;
+    } catch (e) {
+      debugPrint('❌ Error en isFavorite: $e');
       return false;
     }
   }

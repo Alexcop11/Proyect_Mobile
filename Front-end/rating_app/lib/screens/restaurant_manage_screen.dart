@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:rating_app/core/providers/auth_provider.dart';
 import 'package:rating_app/core/providers/restaurant_provider.dart';
 import 'package:rating_app/screens/edit_restaurant.dart';
+import 'package:rating_app/screens/edit_profile_screen.dart';
 import 'package:rating_app/screens/login_screen.dart';
 import 'package:rating_app/screens/register_restaurant.dart';
+import 'package:rating_app/screens/restaurant_reviews.dart';
 import 'package:rating_app/screens/restaurant_screen.dart';
 import 'package:rating_app/widgets/NavigationScaffold.dart';
 import 'package:rating_app/screens/auth_wrapper.dart';
@@ -81,13 +83,6 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
           'menuUrl': restaurant.menuUrl,
           'fechaRegistro': restaurant.fechaRegistro,
           'activo': restaurant.activo,
-          'usuarioPropietario': {
-            'idUsuario': authProvider.currentUser?.idUsuario,
-            'nombre': authProvider.currentUser?.nombre,
-            'apellido': authProvider.currentUser?.apellido,
-            'email': authProvider.currentUser?.email,
-            'telefono': authProvider.currentUser?.telefono,
-          }
         };
 
         return Navigationscaffold(
@@ -103,9 +98,11 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
                 );
                 break;
               case 1:
-                Navigator.pushReplacementNamed(
+                Navigator.push(
                   context,
-                  '/RestaurantReseñas',
+                  MaterialPageRoute(
+                    builder: (context) => const RestaurantReviews(),
+                  ),
                 );
                 break;
               case 2:
@@ -151,6 +148,7 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Card de Información del Usuario
                     Card(
                       elevation: 0,
                       margin: const EdgeInsets.symmetric(vertical: 12),
@@ -183,15 +181,36 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
                                     ),
                                   ),
                                 ),
-                                const Icon(
-                                  Icons.edit,
-                                  color: Colors.redAccent,
-                                  size: 24,
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.edit,
+                                    color: Colors.redAccent,
+                                    size: 24,
+                                  ),
+                                  onPressed: () async {
+                                    final result = await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => EditProfileScreen(
+                                          idUsuario: authProvider.currentUser?.idUsuario ?? 0,
+                                          nombre: authProvider.currentUser?.nombre,
+                                          apellido: authProvider.currentUser?.apellido,
+                                          email: authProvider.currentUser?.email,
+                                          telefono: authProvider.currentUser?.telefono,
+                                        ),
+                                      ),
+                                    );
+                                    
+                                    // Si se actualizó, recargar datos del usuario
+                                    if (result == true) {
+                                      await authProvider.loadCurrentUser();
+                                    }
+                                  },
                                 ),
                               ],
                             ),
                           ),
-                          SizedBox(height: 2),
+                          const SizedBox(height: 2),
                           _buildOwnerCard(
                             "${authProvider.currentUser?.nombre ?? ''} ${authProvider.currentUser?.apellido ?? ''}",
                             authProvider.currentUser?.email ?? '',
@@ -200,6 +219,8 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
                         ],
                       ),
                     ),
+                    
+                    // Card de Información del Restaurante
                     Card(
                       elevation: 0,
                       margin: const EdgeInsets.symmetric(vertical: 12),

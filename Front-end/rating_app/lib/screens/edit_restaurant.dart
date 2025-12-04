@@ -41,21 +41,16 @@ class _EditRestaurantScreenState extends State<EditRestaurantScreen> {
   void initState() {
     super.initState();
     final data = widget.restaurantData;
-    nombreController = TextEditingController(text: data['nombre']);
-    descripcionController = TextEditingController(text: data['descripcion']);
-    direccionController = TextEditingController(text: data['direccion']);
-    telefonoController = TextEditingController(text: data['telefono']);
-    horarioAperturaController = TextEditingController(
-      text: data['horarioApertura'],
-    );
-    horarioCierreController = TextEditingController(
-      text: data['horarioCierre'],
-    );
-    precioPromedioController = TextEditingController(
-      text: data['precioPromedio'].toString(),
-    );
+    nombreController = TextEditingController(text: data['nombre'] ?? '');
+    descripcionController = TextEditingController(text: data['descripcion'] ?? '');
+    direccionController = TextEditingController(text: data['direccion'] ?? '');
+    telefonoController = TextEditingController(text: data['telefono'] ?? '');
+    horarioAperturaController = TextEditingController(text: data['horarioApertura'] ?? '');
+    horarioCierreController = TextEditingController(text: data['horarioCierre'] ?? '');
+    precioPromedioController = TextEditingController(text: data['precioPromedio']?.toString() ?? '');
     selectedCategoria = data['categoria'];
-    menuUrlController = TextEditingController(text: data['menuUrl'] ?? data['menuURL']);
+    // Mantener compatibilidad con ambos nombres de campo
+    menuUrlController = TextEditingController(text: data['menuUrl'] ?? data['menuURL'] ?? '');
   }
 
   @override
@@ -122,28 +117,35 @@ class _EditRestaurantScreenState extends State<EditRestaurantScreen> {
     }
   }
 
-  InputBorder _redBorder({bool focused = false}) => OutlineInputBorder(
-        borderSide: BorderSide(color: Colors.red, width: focused ? 2 : 1),
-      );
+  InputDecoration _styledDecoration(String label, IconData icon, {String? hint}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      labelStyle: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600),
+      prefixIcon: Icon(icon, color: Colors.redAccent),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.redAccent),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.redAccent),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.red, width: 2),
+      ),
+      filled: true,
+      fillColor: Colors.grey[100],
+    );
+  }
 
-  Widget _buildStyledField(
-    TextEditingController controller,
-    String label, {
-    String? hint,
-  }) {
+  Widget _buildStyledField(TextEditingController controller, String label, IconData icon, {String? hint}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: TextField(
         controller: controller,
-        decoration: InputDecoration(
-          labelText: label,
-          hintText: hint,
-          border: _redBorder(),
-          enabledBorder: _redBorder(),
-          focusedBorder: _redBorder(focused: true),
-          filled: true,
-          fillColor: Colors.grey[100],
-        ),
+        decoration: _styledDecoration(label, icon, hint: hint),
       ),
     );
   }
@@ -157,15 +159,7 @@ class _EditRestaurantScreenState extends State<EditRestaurantScreen> {
           return DropdownMenuItem(value: cat, child: Text(cat));
         }).toList(),
         onChanged: (value) => setState(() => selectedCategoria = value),
-        decoration: InputDecoration(
-          labelText: "Tipo de Cocina",
-          hintText: "Seleccione un tipo de comida",
-          border: _redBorder(),
-          enabledBorder: _redBorder(),
-          focusedBorder: _redBorder(focused: true),
-          filled: true,
-          fillColor: Colors.grey[100],
-        ),
+        decoration: _styledDecoration("Tipo de Cocina", Icons.fastfood, hint: "Seleccione un tipo de comida"),
       ),
     );
   }
@@ -202,8 +196,8 @@ class _EditRestaurantScreenState extends State<EditRestaurantScreen> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                _buildStyledField(nombreController, "Nombre del Restaurante"),
-                _buildStyledField(descripcionController, "Descripción"),
+                _buildStyledField(nombreController, "Nombre del Restaurante", Icons.restaurant),
+                _buildStyledField(descripcionController, "Descripción", Icons.description),
                 _buildDropdownField(),
 
                 const SizedBox(height: 16),
@@ -212,7 +206,7 @@ class _EditRestaurantScreenState extends State<EditRestaurantScreen> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                _buildStyledField(telefonoController, "Teléfono del Negocio"),
+                _buildStyledField(telefonoController, "Teléfono del Negocio", Icons.phone),
 
                 const SizedBox(height: 16),
                 const Text(
@@ -220,7 +214,7 @@ class _EditRestaurantScreenState extends State<EditRestaurantScreen> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                _buildStyledField(direccionController, "Dirección"),
+                _buildStyledField(direccionController, "Dirección", Icons.location_on),
 
                 const SizedBox(height: 16),
                 const Text(
@@ -228,8 +222,8 @@ class _EditRestaurantScreenState extends State<EditRestaurantScreen> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                _buildStyledField(horarioAperturaController, "Abre a"),
-                _buildStyledField(horarioCierreController, "Cierra a"),
+                _buildStyledField(horarioAperturaController, "Abre a", Icons.access_time),
+                _buildStyledField(horarioCierreController, "Cierra a", Icons.access_time),
                 const Padding(
                   padding: EdgeInsets.only(top: 4),
                   child: Text(
@@ -247,6 +241,7 @@ class _EditRestaurantScreenState extends State<EditRestaurantScreen> {
                 _buildStyledField(
                   precioPromedioController,
                   "Precio Promedio por Persona (\$)",
+                  Icons.attach_money,
                   hint: "Aproximadamente cuánto gasta un cliente en promedio",
                 ),
 
@@ -259,22 +254,33 @@ class _EditRestaurantScreenState extends State<EditRestaurantScreen> {
                 _buildStyledField(
                   menuUrlController,
                   "URL del Menú (Opcional)",
+                  Icons.link,
                   hint: "Link a tu menú digital",
                 ),
 
                 const SizedBox(height: 24),
                 SizedBox(
+                  width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
                     onPressed: restaurantProvider.isLoading ? null : _saveChanges,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.redAccent,
+                      elevation: 4,
+                      shadowColor: Colors.black54,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     child: restaurantProvider.isLoading
                         ? const CircularProgressIndicator(color: Colors.white)
                         : const Text(
                             "Guardar Cambios",
-                            style: TextStyle(color: Colors.white),
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                   ),
                 ),

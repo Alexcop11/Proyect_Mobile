@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 class custom_rate extends StatelessWidget {
-  final double rating;       // ej. 4.8
-  final int totalReviews;    // ej. 127
-  final VoidCallback onPressed; // acción del botón
+  final double rating;       
+  final int totalReviews;    
+  final VoidCallback onPressed; 
 
   const custom_rate({
     super.key,
