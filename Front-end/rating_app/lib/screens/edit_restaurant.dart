@@ -1,7 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:rating_app/core/providers/auth_provider.dart';
-import 'package:rating_app/screens/auth_wrapper.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as path;
 
 class EditRestaurantScreen extends StatefulWidget {
   final Map<String, dynamic> restaurantData;
@@ -62,6 +65,14 @@ class _EditRestaurantScreenState extends State<EditRestaurantScreen> {
     menuUrlController.dispose();
     super.dispose();
   }
+
+  Future<String?> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.camera);
+    if (pickedFile == null) return null;
+    return pickedFile.path;
+  }
+
 
   Future<void> _saveChanges() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -139,6 +150,34 @@ class _EditRestaurantScreenState extends State<EditRestaurantScreen> {
     );
   }
 
+  Widget _buildImageField() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: TextField(
+        controller: menuUrlController,
+        readOnly: true,
+        decoration: _styledDecoration(
+          "Menú (Foto)",
+          Icons.camera_alt,
+          hint: "Toma una foto para el menú",
+        ),
+        onTap: () async {
+          final path = await _pickImage();
+          if (path != null) {
+            setState(() {
+              menuUrlController.text = "file://$path";
+            });
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("No se tomó ninguna foto")),
+            );
+          }
+        },
+      ),
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -193,13 +232,7 @@ class _EditRestaurantScreenState extends State<EditRestaurantScreen> {
             const SizedBox(height: 16),
             const Text("Menú", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            _buildStyledField(
-              menuUrlController,
-              "URL del Menú (Opcional)",
-              Icons.link,
-              hint: "Link a tu menú digital",
-            ),
-
+            _buildImageField(),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,

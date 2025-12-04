@@ -180,7 +180,7 @@ class AuthService {
 
     final response = await _apiServices.request(
       method: 'PUT',
-      endpoint: 'http://192.168.0.17:8000/api/users/',
+      endpoint: 'http://192.168.110.171:8000/api/users/',
       data: payload,
     );
 
@@ -196,7 +196,7 @@ class AuthService {
   Future<Map<String, dynamic>?> getRestaurantByEmail(String email) async {
     final response = await _apiServices.request(
       method: 'GET',
-      endpoint: 'http://192.168.0.17:8000/api/restaurants/owner/$email',
+      endpoint: 'http://192.168.110.171:8000/api/restaurants/owner/$email',
     );
 
     final data = response.data;
@@ -213,7 +213,7 @@ class AuthService {
       final response = await _apiServices.request(
         method: 'GET',
         endpoint:
-            'http://192.168.0.17:8000/api/favorites/restaurant/$idRestaurante/count',
+            'http://192.168.110.171:8000/api/favorites/restaurant/$idRestaurante/count',
       );
 
       final data = response.data;
@@ -235,7 +235,7 @@ class AuthService {
       final response = await _apiServices.request(
         method: 'GET',
         endpoint:
-            'http://192.168.0.17:8000/api/ratings/restaurant/$idRestaurante',
+            'http://192.168.110.171:8000/api/ratings/restaurant/$idRestaurante',
       );
 
       final data = response.data;
@@ -257,7 +257,7 @@ class AuthService {
       final response = await _apiServices.request(
         method: 'GET',
         endpoint:
-            'http://192.168.0.17:8000/api/ratings/restaurant/$idRestaurante',
+            'http://192.168.110.171:8000/api/ratings/restaurant/$idRestaurante',
       );
 
       final data = response.data;
@@ -290,7 +290,7 @@ class AuthService {
       final response = await _apiServices.request(
         method: 'GET',
         endpoint:
-            'http://192.168.0.17:8000/api/ratings/restaurant/$idRestaurante',
+            'http://192.168.110.171:8000/api/ratings/restaurant/$idRestaurante',
       );
 
       final data = response.data;
@@ -341,8 +341,8 @@ class AuthService {
 
     final response = await _apiServices.request(
       method: 'PUT',
-      endpoint: 'http://192.168.0.17:8000/api/restaurants/',
-      data: payload,
+      endpoint: 'http://192.168.110.171:8000/api/restaurants/',
+      data: payload,  
     );
 
     debugPrint("📡 Actualización restaurante: ${jsonEncode(response.data)}");
