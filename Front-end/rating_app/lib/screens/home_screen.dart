@@ -47,7 +47,7 @@ class HomeScreen extends StatelessWidget {
 
                   Navigator.pushAndRemoveUntil(
                     context,
-                    MaterialPageRoute(builder: (_) => AuthWrapper()),
+                    MaterialPageRoute(builder: (_) => const AuthWrapper()),
                     (route) => false,
                   );
                 },

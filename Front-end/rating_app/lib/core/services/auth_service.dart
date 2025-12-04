@@ -20,20 +20,24 @@ class AuthService {
       final responseData = response.data;
 
       debugPrint("📤 Enviando login con: $email");
-      debugPrint("📥 Respuesta: ${jsonEncode(responseData)}");
+      debugPrint("📥 Respuesta completa: ${jsonEncode(responseData)}");
 
       if (responseData['status'] == 'OK' && responseData['data'] != null) {
-        final token = responseData['data']['token'];
-        final role = responseData['data']['role'];
-        final email = responseData['data']['email'];
-        await _saveAuthData(token, role, email);
-        return {"token": token, "role": role, "email": email};
+        final data = responseData['data'];
+        final token = data['token'];
+        final role = data['role'];
+        final savedEmail = data['email'] ?? email;
+
+        await _saveAuthData(token, role, savedEmail);
+        return {"token": token, "role": role, "email": savedEmail};
+        
       } else {
-        final errorMessage =
-            responseData['message'] ?? 'Credenciales incorrectas';
+        final errorMessage = responseData['message'] ?? 'Credenciales incorrectas';
         throw Exception(errorMessage);
       }
+
     } catch (e) {
+      debugPrint('❌ Error en login: $e');
       throw Exception(e.toString().replaceFirst('Exception: ', ''));
     }
   }
@@ -69,64 +73,11 @@ class AuthService {
       final user = User.fromJson(userJson);
       final role = userJson['tipoUsuario'] ?? 'NORMAL';
       final token = responseData['token'] ?? '';
-      await _saveAuthData(token, role, "");
+      await _saveAuthData(token, role, email);
 
       return {'user': user, 'token': token, 'role': role};
     } else {
       final errorMessage = responseData['text'] ?? 'Error al registrar';
-      throw Exception(errorMessage);
-    }
-  }
-
-  Future<Map<String, dynamic>> createRestaurant({
-    required int idUsuarioPropietario,
-    required String nombre,
-    required String descripcion,
-    required String direccion,
-    required double latitud,
-    required double longitud,
-    required String telefono,
-    required String horarioApertura,
-    required String horarioCierre,
-    required double precioPromedio,
-    required String categoria,
-    required String menuUrl,
-    required String fechaRegistro,
-    required bool activo,
-  }) async {
-    final response = await _apiServices.request(
-      method: 'POST',
-      endpoint: Api_Constants.restaurantPoint,
-      data: {
-        'idUsuarioPropietario': idUsuarioPropietario,
-        'nombre': nombre,
-        'descripcion': descripcion,
-        'direccion': direccion,
-        'latitud': latitud,
-        'longitud': longitud,
-        'telefono': telefono,
-        'horarioApertura': horarioApertura,
-        'horarioCierre': horarioCierre,
-        'precioPromedio': precioPromedio,
-        'categoria': categoria,
-        'menuUrl': menuUrl,
-        'fechaRegistro': fechaRegistro,
-        'activo': activo,
-      },
-    );
-
-    final responseData = response.data;
-    debugPrint("📤 Creando restaurante: $nombre");
-    debugPrint("📥 Respuesta: ${jsonEncode(responseData)}");
-
-    if (responseData['type'] == 'SUCCESS' && responseData['result'] != null) {
-      final result = responseData['result'];
-      final idRestaurante = result['idRestaurante'];
-      final propietario = result['usuarioPropietario'];
-      return {'idRestaurante': idRestaurante, 'propietario': propietario};
-    } else {
-      final errorMessage =
-          responseData['text'] ?? 'Error al registrar restaurante';
       throw Exception(errorMessage);
     }
   }
@@ -162,85 +113,35 @@ class AuthService {
     }
   }
 
-  Future<Map<String, dynamic>?> getRestaurantByEmail(String email) async {
-    final response = await _apiServices.request(
-      method: 'GET',
-      endpoint: 'http://192.168.105.198:8000/api/restaurants/owner/$email',
-    );
-
-    final data = response.data;
-    debugPrint("📡 Backend: ${jsonEncode(data)}");
-
-    if (data['type'] == 'SUCCESS' && data['result'] != null) {
-      return data['result'];
-    }
-    return null;
-  }
-
-  Future<Map<String, dynamic>> updateRestaurant({
-    required int idRestaurante,
-    required int idUsuarioPropietario,
-    required String nombre,
-    required String descripcion,
-    required String direccion,
-    required double latitud,
-    required double longitud,
-    required String telefono,
-    required String horarioApertura,
-    required String horarioCierre,
-    required double precioPromedio,
-    required String categoria,
-    required String menuUrl,
-    required String fechaRegistro,
-    required bool activo,
-  }) async {
-    final payload = {
-      "idRestaurante": idRestaurante,
-      "idUsuarioPropietario": idUsuarioPropietario,
-      "nombre": nombre,
-      "descripcion": descripcion,
-      "direccion": direccion,
-      "latitud": latitud,
-      "longitud": longitud,
-      "telefono": telefono,
-      "horarioApertura": horarioApertura,
-      "horarioCierre": horarioCierre,
-      "precioPromedio": precioPromedio,
-      "categoria": categoria,
-      "menuURL": menuUrl,
-      "fechaRegistro": fechaRegistro,
-      "activo": activo,
-    };
-
-    final response = await _apiServices.request(
-      method: 'PUT',
-      endpoint: 'http://192.168.107.81:8000/api/restaurants/',
-      data: payload,
-    );
-
-    debugPrint("📡 Actualización restaurante: ${jsonEncode(response.data)}");
-
-    if (response.data['type'] == 'SUCCESS') {
-      return response.data['result'];
-    } else {
-      throw Exception(response.data['message'] ?? 'Error desconocido');
-    }
-  }
-
   Future<void> _saveAuthData(String token, String role, String email) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(StorageKeys.token, token);
     await prefs.setString(StorageKeys.role, role);
     await prefs.setString(StorageKeys.email, email);
+    await prefs.setString(StorageKeys.userEmail, email);
+    await prefs.setString(StorageKeys.userRole, role);
     _apiServices.setToken(token);
     _apiServices.setRole(role);
     _apiServices.setEmail(email);
+  }
+
+  Future<String?> getUserEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(StorageKeys.userEmail) ?? prefs.getString(StorageKeys.email);
+  }
+
+  Future<String?> getUserRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(StorageKeys.userRole) ?? prefs.getString(StorageKeys.role);
   }
 
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(StorageKeys.token);
     await prefs.remove(StorageKeys.role);
+    await prefs.remove(StorageKeys.email);
+    await prefs.remove(StorageKeys.userEmail);
+    await prefs.remove(StorageKeys.userRole);
 
     _apiServices.cleanToken();
     _apiServices.cleanRole();

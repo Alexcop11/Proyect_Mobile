@@ -16,8 +16,10 @@ class ApiServices {
     _dio = Dio(
       BaseOptions(
         baseUrl: Api_Constants.url,
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 10),
+        // ✅ Aumentar timeouts
+        connectTimeout: const Duration(seconds: 30), // Era 10, ahora 30
+        receiveTimeout: const Duration(seconds: 30), // Era 10, ahora 30
+        sendTimeout: const Duration(seconds: 30),    // Nuevo
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -31,13 +33,28 @@ class ApiServices {
           if (_token != null) {
             options.headers['Authorization'] = 'Bearer $_token';
           }
+          // Log de la petición
+          print('📤 ${options.method} ${options.path}');
+          if (_token != null) {
+            print('🔑 Token: ${_token!.substring(0, 20)}...');
+          }
           return handler.next(options);
         },
+        onResponse: (response, handler) {
+          // Log de respuesta exitosa
+          print('✅ ${response.statusCode} ${response.requestOptions.path}');
+          return handler.next(response);
+        },
         onError: (error, handler) {
+          // Log de error
+          print('❌ Error: ${error.type}');
+          print('❌ Message: ${error.message}');
+          
           if (error.response?.statusCode == 401) {
-            print("Token expirado");
+            print("🔒 Token expirado o inválido");
             cleanToken();
           }
+          
           return handler.next(error);
         },
       ),
@@ -54,10 +71,12 @@ class ApiServices {
 
   void setToken(String token) {
     _token = token;
+    print('🔑 Token configurado en ApiServices');
   }
 
   void cleanToken() {
     _token = null;
+    print('🗑️ Token eliminado de ApiServices');
   }
 
   Future<Response> request({
@@ -80,14 +99,34 @@ class ApiServices {
   }
 
   Exception _handleError(DioException error) {
-    if (error.response != null) {
-      final responseData = error.response!.data;
-      if (responseData is Map && responseData.containsKey('message')) {
-        return Exception(responseData['message']);
-      }
-      return Exception('Error del servidor: ${error.response!.statusCode}');
-    } else {
-      return Exception('Error de conexión: ${error.message}');
+    switch (error.type) {
+      case DioExceptionType.connectionTimeout:
+        return Exception('Timeout de conexión. Verifica tu conexión a internet.');
+      
+      case DioExceptionType.sendTimeout:
+        return Exception('Timeout al enviar datos. El servidor no responde.');
+      
+      case DioExceptionType.receiveTimeout:
+        return Exception('Timeout al recibir datos. El servidor tardó demasiado.');
+      
+      case DioExceptionType.badResponse:
+        final responseData = error.response!.data;
+        if (responseData is Map && responseData.containsKey('message')) {
+          return Exception(responseData['message']);
+        }
+        if (responseData is Map && responseData.containsKey('text')) {
+          return Exception(responseData['text']);
+        }
+        return Exception('Error del servidor: ${error.response!.statusCode}');
+      
+      case DioExceptionType.cancel:
+        return Exception('Petición cancelada');
+      
+      case DioExceptionType.connectionError:
+        return Exception('Error de conexión. Verifica que el servidor esté corriendo.');
+      
+      default:
+        return Exception('Error de red: ${error.message}');
     }
   }
 

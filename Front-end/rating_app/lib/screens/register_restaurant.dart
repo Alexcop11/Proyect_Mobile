@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:rating_app/core/providers/auth_provider.dart';
+import 'package:rating_app/core/providers/restaurant_provider.dart';
 import 'package:rating_app/screens/login_screen.dart';
 import 'package:rating_app/screens/restaurant_screen.dart';
 import 'package:rating_app/widgets/NavigationScaffold.dart';
@@ -11,8 +12,7 @@ class RegisterRestaurant extends StatefulWidget {
   const RegisterRestaurant({super.key});
 
   @override
-  State<RegisterRestaurant> createState() =>
-      Registerrestaurant();
+  State<RegisterRestaurant> createState() => Registerrestaurant();
 }
 
 class Registerrestaurant extends State<RegisterRestaurant> {
@@ -51,8 +51,20 @@ class Registerrestaurant extends State<RegisterRestaurant> {
     }
   }
 
-  Future<void> _handleCreateRestaurant(AuthProvider authProvider) async {
-    final success = await authProvider.createRestaurant(
+  Future<void> _handleCreateRestaurant(
+    AuthProvider authProvider,
+    RestaurantProvider restaurantProvider,
+  ) async {
+    // Obtener el ID del usuario actual
+    if (authProvider.currentUser?.idUsuario == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Error: Usuario no autenticado")),
+      );
+      return;
+    }
+
+    final success = await restaurantProvider.createRestaurant(
+      idUsuarioPropietario: authProvider.currentUser!.idUsuario!,
       nombre: nombreController.text,
       descripcion: descripcionController.text,
       direccion: direccionController.text,
@@ -72,11 +84,16 @@ class Registerrestaurant extends State<RegisterRestaurant> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("✅ Restaurante creado correctamente")),
       );
+      // Navegar a la pantalla de gestión
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const RestaurantScreen()),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            "Error: ${authProvider.errorMessage ?? 'No se pudo crear'}",
+            "Error: ${restaurantProvider.errorMessage ?? 'No se pudo crear'}",
           ),
         ),
       );
@@ -85,8 +102,8 @@ class Registerrestaurant extends State<RegisterRestaurant> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
+    return Consumer2<AuthProvider, RestaurantProvider>(
+      builder: (context, authProvider, restaurantProvider, child) {
         if (!authProvider.isAuthenticated) return const LoginScreen();
 
         return Navigationscaffold(
@@ -107,7 +124,9 @@ class Registerrestaurant extends State<RegisterRestaurant> {
               case 2:
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const RestaurantScreen()),
+                  MaterialPageRoute(
+                    builder: (context) => const RestaurantScreen(),
+                  ),
                 );
                 break;
             }
@@ -161,16 +180,18 @@ class Registerrestaurant extends State<RegisterRestaurant> {
                   width: double.infinity,
                   height: 60,
                   child: ElevatedButton.icon(
-                    icon: const Icon(Icons.location_on, size: 28,color: Colors.white,),
+                    icon: const Icon(
+                      Icons.location_on,
+                      size: 28,
+                      color: Colors.white,
+                    ),
                     label: Text(
-                      
                       isGettingLocation
                           ? "Obteniendo ubicación..."
                           : "Usar mi ubicación",
-                      style: const TextStyle(fontSize: 18,
-                      color: Colors.white),
+                      style: const TextStyle(fontSize: 18, color: Colors.white),
                     ),
-                    style: ElevatedButton.styleFrom(  
+                    style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.redAccent,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -219,11 +240,18 @@ class Registerrestaurant extends State<RegisterRestaurant> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.redAccent,
                     ),
-                    onPressed: () => _handleCreateRestaurant(authProvider),
-                    child: const Text(
-                      "Registrar Restaurante",
-                      style: TextStyle(fontSize: 16, color: Colors.white),
-                    ),
+                    onPressed: restaurantProvider.isLoading
+                        ? null
+                        : () => _handleCreateRestaurant(
+                              authProvider,
+                              restaurantProvider,
+                            ),
+                    child: restaurantProvider.isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
+                            "Registrar Restaurante",
+                            style: TextStyle(fontSize: 16, color: Colors.white),
+                          ),
                   ),
                 ),
               ],

@@ -5,7 +5,6 @@ import 'package:rating_app/core/services/api_services.dart';
 import 'package:rating_app/core/services/auth_service.dart';
 import 'package:rating_app/screens/recoverpassword_screen.dart';
 import "register_screen.dart";
-import "home_screen.dart";
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

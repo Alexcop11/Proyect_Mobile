@@ -1,10 +1,13 @@
 import 'dart:convert';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:rating_app/core/services/auth_service.dart';
+import 'package:rating_app/core/services/user_service.dart';
+import 'package:rating_app/models/user.dart';
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService;
-
+  final UserService _userService;
+  
   bool _isAuthenticated = false;
   bool _isLoading = true;
   String? _token;
@@ -12,6 +15,7 @@ class AuthProvider with ChangeNotifier {
   String? _email;
   String? _nombre;
   String? _apellido;
+  User? _currentUser;
   String? _errorMessage;
 
   String? get token => _token;
@@ -19,12 +23,13 @@ class AuthProvider with ChangeNotifier {
   String? get email => _email;
   String? get nombre => _nombre;
   String? get apellido => _apellido;
+  User? get currentUser => _currentUser;
   String? get errorMessage => _errorMessage;
 
   bool get isAuthenticated => _token != null && _token!.isNotEmpty;
   bool get isLoading => _isLoading;
 
-  AuthProvider(this._authService) {
+  AuthProvider(this._authService, this._userService) {
     _initializeAuth();
   }
 
@@ -39,7 +44,7 @@ class AuthProvider with ChangeNotifier {
         _email = await _authService.getStoredEmail();
 
         if (_email != null) {
-          await _authService.getUser(_email!);
+          await loadCurrentUser();
         }
       } else {
         _isAuthenticated = false;
@@ -57,12 +62,53 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<void> loadCurrentUser() async {
+    try {
+      final email = await _authService.getUserEmail();
+      debugPrint('📧 Email recuperado: $email');
+      
+      if (email != null && email.isNotEmpty) {
+        debugPrint('🔄 Cargando datos del usuario desde el servidor...');
+        
+        _currentUser = await _userService.getUserByEmail(email);
+        
+        if (_currentUser != null) {
+          debugPrint('✅ Usuario cargado: ${_currentUser!.nombre}');
+          _nombre = _currentUser!.nombre;
+          _apellido = _currentUser!.apellido;
+        } else {
+          debugPrint('⚠️ No se pudo obtener el usuario');
+          _errorMessage = 'No se pudo cargar la información del usuario';
+        }
+      } else {
+        debugPrint('⚠️ No hay email guardado');
+        _errorMessage = 'No hay sesión activa';
+      }
+    } on Exception catch (e) {
+      debugPrint('❌ Error cargando usuario: $e');
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      
+      final email = await _authService.getUserEmail();
+      if (email != null) {
+        debugPrint('⚠️ Continuando con datos básicos del usuario');
+        _currentUser = User(
+          nombre: 'Usuario',
+          email: email,
+          tipoUsuario: TipoUsuario.NORMAL,
+          activo: true,
+        );
+      }
+    }
+    notifyListeners();
+  }
   
   Future<bool> login(String email, String password) async {
     _isLoading = true;
     notifyListeners();
 
     try {
+      debugPrint('🔐 Intentando login con: $email');
       final result = await _authService.login(email, password);
       _token = result['token'];
       _role = result['role'];
@@ -71,6 +117,8 @@ class AuthProvider with ChangeNotifier {
       final userData = await _authService.getUser(_email!);
       _nombre = userData['nombre'];
       _apellido = userData['apellido'];
+
+      await loadCurrentUser();
 
       notifyListeners();
       return true;
@@ -97,6 +145,7 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      debugPrint('📝 Intentando registro con: $email');
       final result = await _authService.register(
         nombre: nombre,
         apellido: apellido,
@@ -112,6 +161,7 @@ class AuthProvider with ChangeNotifier {
       if (token != null && role != null) {
         _isAuthenticated = true;
         _errorMessage = null;
+        await loadCurrentUser();
         notifyListeners();
         return true;
       } else {
@@ -131,6 +181,77 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> updateProfile({
+    required String nombre,
+    required String apellido,
+    required String email,
+    String? telefono,
+  }) async {
+    if (_currentUser == null) {
+      _errorMessage = 'No hay usuario autenticado';
+      return false;
+    }
+
+    try {
+      debugPrint('📝 Actualizando perfil de usuario ID: ${_currentUser!.idUsuario}');
+        
+      final updatedUser = await _userService.updateProfile(
+        idUsuario: _currentUser!.idUsuario!,
+        nombre: nombre,
+        apellido: apellido,
+        email: email,
+        telefono: telefono,
+        tipoUsuario: _currentUser!.tipoUsuario.toString().split('.').last,
+        activo: _currentUser!.activo,
+      );
+
+      if (updatedUser != null) {
+        _currentUser = updatedUser;
+        _nombre = updatedUser.nombre;
+        _apellido = updatedUser.apellido;
+        debugPrint('✅ Perfil actualizado correctamente');
+          
+        notifyListeners();
+        return true;
+      }
+
+      _errorMessage = 'No se pudo actualizar el perfil';
+      return false;
+    } catch (e) {
+      debugPrint('❌ Error actualizando perfil: $e');
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      return false;
+    }
+  }
+
+  Future<bool> changePassword(String newPassword) async {
+    if (_currentUser == null) {
+      _errorMessage = 'No hay usuario autenticado';
+      return false;
+    }
+
+    try {
+      debugPrint('🔒 Cambiando contraseña para usuario ID: ${_currentUser!.idUsuario}');
+      
+      final success = await _userService.changePassword(
+        idUsuario: _currentUser!.idUsuario!,
+        newPassword: newPassword,
+      );
+
+      if (success) {
+        debugPrint('✅ Contraseña actualizada correctamente');
+      } else {
+        _errorMessage = 'No se pudo cambiar la contraseña';
+      }
+
+      return success;
+    } catch (e) {
+      debugPrint('❌ Error cambiando contraseña: $e');
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      return false;
+    }
+  }
+
   Future<bool> fetchUserData() async {
     try {
       if (_email == null || _email!.isEmpty) {
@@ -138,8 +259,6 @@ class AuthProvider with ChangeNotifier {
       }
 
       final userData = await _authService.getUser(_email!);
-      await _authService.getRestaurantByEmail(_email!);
-
       debugPrint("📥 Respuesta: ${jsonEncode(userData)}");
 
       _nombre = userData['nombre'];
@@ -154,144 +273,23 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> createRestaurant({
-    required String nombre,
-    required String descripcion,
-    required String direccion,
-    required double latitud,
-    required double longitud,
-    required String telefono,
-    required String horarioApertura,
-    required String horarioCierre,
-    required double precioPromedio,
-    required String categoria,
-    required String menuUrl,
-    required String fechaRegistro,
-    required bool activo,
-  }) async {
-    _isLoading = true;
-    notifyListeners();
-
-    try {
-      if (_email == null) {
-        throw Exception("No hay sesión activa para crear restaurante");
-      }
-
-      final userData = await _authService.getUser(_email!);
-      final idUsuarioPropietario = userData['idUsuario'];
-
-      final result = await _authService.createRestaurant(
-        idUsuarioPropietario: idUsuarioPropietario,
-        nombre: nombre,
-        descripcion: descripcion,
-        direccion: direccion,
-        latitud: latitud,
-        longitud: longitud,
-        telefono: telefono,
-        horarioApertura: horarioApertura,
-        horarioCierre: horarioCierre,
-        precioPromedio: precioPromedio,
-        categoria: categoria,
-        menuUrl: menuUrl,
-        fechaRegistro: fechaRegistro,
-        activo: activo,
-      );
-
-      debugPrint("🏠 Restaurante creado: ${result['idRestaurante']}");
-      _errorMessage = null;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      debugPrint("❌ Error al crear restaurante: $_errorMessage");
-      notifyListeners();
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  Future<bool> updateRestaurant({
-    required int idRestaurante,
-    required String nombre,
-    required String descripcion,
-    required String direccion,
-    required double latitud,
-    required double longitud,
-    required String telefono,
-    required String horarioApertura,
-    required String horarioCierre,
-    required double precioPromedio,
-    required String categoria,
-    required String menuUrl,
-    required String fechaRegistro,
-    required bool activo,
-  }) async {
-    _isLoading = true;
-    notifyListeners();
-
-    try {
-      if (_email == null) {
-        throw Exception("No hay sesión activa para actualizar restaurante");
-      }
-
-      final userData = await _authService.getUser(_email!);
-      final idUsuarioPropietario = userData['idUsuario'];
-
-      final result = await _authService.updateRestaurant(
-        idRestaurante: idRestaurante,
-        idUsuarioPropietario: idUsuarioPropietario,
-        nombre: nombre,
-        descripcion: descripcion,
-        direccion: direccion,
-        latitud: latitud,
-        longitud: longitud,
-        telefono: telefono,
-        horarioApertura: horarioApertura,
-        horarioCierre: horarioCierre,
-        precioPromedio: precioPromedio,
-        categoria: categoria,
-        menuUrl: menuUrl,
-        fechaRegistro: fechaRegistro,
-        activo: activo,
-      );
-
-      debugPrint("Restaurante actualizado: ${result['idRestaurante']}");
-      _errorMessage = null;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      debugPrint("❌ Error al actualizar restaurante: $_errorMessage");
-      notifyListeners();
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  Future<Map<String, dynamic>?> checkRestaurantStatus(String email) async {
-    try {
-      final restaurantData = await _authService.getRestaurantByEmail(email);
-      debugPrint("📥 Respuesta: ${jsonEncode(restaurantData)}");
-
-      return restaurantData;
-    } catch (e) {
-      _errorMessage = e.toString();
-      notifyListeners();
-      return null;
-    }
-  }
-
   Future<void> logout() async {
+    debugPrint('👋 Cerrando sesión...');
     await _authService.logout();
     _token = null;
     _role = null;
     _email = null;
     _nombre = null;
     _apellido = null;
+    _isAuthenticated = false;
+    _currentUser = null;
+    _errorMessage = null;
+    notifyListeners();
+    debugPrint('✅ Sesión cerrada');
+  }
+
+  void clearError() {
+    _errorMessage = null;
     notifyListeners();
   }
 }

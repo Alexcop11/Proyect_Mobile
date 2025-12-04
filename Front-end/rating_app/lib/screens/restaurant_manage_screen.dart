@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:rating_app/core/providers/auth_provider.dart';
-import 'package:rating_app/core/services/auth_service.dart';
+import 'package:rating_app/core/providers/restaurant_provider.dart';
 import 'package:rating_app/screens/edit_restaurant.dart';
 import 'package:rating_app/screens/login_screen.dart';
 import 'package:rating_app/screens/register_restaurant.dart';
@@ -18,244 +18,268 @@ class Restaurant_manage_Screen extends StatefulWidget {
 }
 
 class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
-  late final AuthService _authService;
-  Map<String, dynamic>? ownerData;
-
-  Future<void> cargarDatosPropietario() async {
-    try {
-      final email = Provider.of<AuthProvider>(context, listen: false).email;
-      if (email != null) {
-        final response = await _authService.getUser(email);
-        final propietario = response['usuarioPropietario'] ?? response;
-
-        setState(() {
-          ownerData = {
-            "idUsuario": propietario['idUsuario'],
-            "email": propietario['email'],
-            "tipousuario": propietario['tipoUsuario'],
-            "nombre": propietario['nombre'],
-            "apellido": propietario['apellido'],
-            "telefono": propietario['telefono'],
-            "fechaRegistro": propietario['fechaRegistro'],
-            "activo": propietario['activo'],
-            "ultimoLogin": propietario['ultimoLogin'],
-          };
-        });
-      }
-    } catch (e) {
-      debugPrint("Error al cargar propietario: $e");
-    }
-  }
-
   @override
   void initState() {
     super.initState();
+    // Cargar el restaurante del propietario cuando se inicializa la pantalla
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final email = Provider.of<AuthProvider>(context, listen: false).email;
-      if (email != null) cargarDatosPropietario();
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final restaurantProvider = Provider.of<RestaurantProvider>(
+        context,
+        listen: false,
+      );
+
+      if (authProvider.email != null) {
+        restaurantProvider.loadOwnerRestaurant(authProvider.email!);
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
+    return Consumer2<AuthProvider, RestaurantProvider>(
+      builder: (context, authProvider, restaurantProvider, child) {
         if (!authProvider.isAuthenticated) return const LoginScreen();
 
-        return FutureBuilder<Map<String, dynamic>?>(
-          future: authProvider.checkRestaurantStatus(authProvider.email!),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            if (snapshot.hasError) {
-              return Center(child: Text("Error: ${snapshot.error}"));
-            }
-
-            final restaurantData = snapshot.data;
-
-            if (restaurantData == null) {
-              return const RegisterRestaurant();
-            }
-
-            return Navigationscaffold(
-              currentIndex: 2,
-              onTap: (index) {
-                switch (index) {
-                  case 0:
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const RestaurantScreen(),
-                      ),
-                    );
-                    break;
-                  case 1:
-                    Navigator.pushReplacementNamed(
-                      context,
-                      '/RestaurantReseñas',
-                    );
-                    break;
-                  case 2:
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const Restaurant_manage_Screen(),
-                      ),
-                    );
-                    break;
-                }
-              },
-              appBar: AppBar(
-                title: const Text("FoodFinder"),
-                backgroundColor: Colors.redAccent,
-                foregroundColor: Colors.white,
-                actions: [
-                  IconButton(
-                    icon: const Icon(Icons.logout),
-                    onPressed: () async {
-                      await authProvider.logout();
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        MaterialPageRoute(builder: (_) => const AuthWrapper()),
-                        (route) => false,
-                      );
-                    },
-                  ),
-                ],
+        // Mostrar loading mientras carga el restaurante
+        if (restaurantProvider.isLoading) {
+          return Scaffold(
+            backgroundColor: Colors.white,
+            appBar: AppBar(
+              title: const Text("FoodFinder"),
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+            ),
+            body: const Center(
+              child: CircularProgressIndicator(
+                color: Colors.redAccent,
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Card(
-                        elevation: 0,
-                        margin: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  const Icon(
-                                    Icons.restaurant,
-                                    color: Colors.redAccent,
-                                    size: 28,
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Center(
-                                      child: Text(
-                                        "Información del Usuario",
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                        ),
+            ),
+          );
+        }
+
+        final restaurant = restaurantProvider.ownerRestaurant;
+
+        // Si no tiene restaurante, mostrar pantalla de registro
+        if (restaurant == null) {
+          return const RegisterRestaurant();
+        }
+
+        // Convertir Restaurant a Map para mantener compatibilidad con los widgets existentes
+        final restaurantData = {
+          'idRestaurante': restaurant.idRestaurante,
+          'nombre': restaurant.nombre,
+          'descripcion': restaurant.descripcion,
+          'direccion': restaurant.direccion,
+          'latitud': restaurant.latitud,
+          'longitud': restaurant.longitud,
+          'telefono': restaurant.telefono,
+          'horarioApertura': restaurant.horarioApertura,
+          'horarioCierre': restaurant.horarioCierre,
+          'precioPromedio': restaurant.precioPromedio,
+          'categoria': restaurant.categoria,
+          'menuUrl': restaurant.menuUrl,
+          'fechaRegistro': restaurant.fechaRegistro,
+          'activo': restaurant.activo,
+          'usuarioPropietario': {
+            'idUsuario': authProvider.currentUser?.idUsuario,
+            'nombre': authProvider.currentUser?.nombre,
+            'apellido': authProvider.currentUser?.apellido,
+            'email': authProvider.currentUser?.email,
+            'telefono': authProvider.currentUser?.telefono,
+          }
+        };
+
+        return Navigationscaffold(
+          currentIndex: 2,
+          onTap: (index) {
+            switch (index) {
+              case 0:
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const RestaurantScreen(),
+                  ),
+                );
+                break;
+              case 1:
+                Navigator.pushReplacementNamed(
+                  context,
+                  '/RestaurantReseñas',
+                );
+                break;
+              case 2:
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const Restaurant_manage_Screen(),
+                  ),
+                );
+                break;
+            }
+          },
+          appBar: AppBar(
+            title: const Text("FoodFinder"),
+            backgroundColor: Colors.redAccent,
+            foregroundColor: Colors.white,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.logout),
+                onPressed: () async {
+                  await authProvider.logout();
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AuthWrapper()),
+                    (route) => false,
+                  );
+                },
+              ),
+            ],
+          ),
+          child: RefreshIndicator(
+            onRefresh: () async {
+              if (authProvider.email != null) {
+                await restaurantProvider.loadOwnerRestaurant(
+                  authProvider.email!,
+                );
+              }
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Card(
+                      elevation: 0,
+                      margin: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.person,
+                                  color: Colors.redAccent,
+                                  size: 28,
+                                ),
+                                const SizedBox(width: 16),
+                                const Expanded(
+                                  child: Center(
+                                    child: Text(
+                                      "Información del Usuario",
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                   ),
-                                  const Icon(
-                                    Icons.edit,
-                                    color: Colors.redAccent,
-                                    size: 24,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            SizedBox(height: 2),
-                            _buildOwnerCard(
-                              "${restaurantData!['usuarioPropietario']['nombre'] ?? ''} ${restaurantData!['usuarioPropietario']['apellido'] ?? ''}",
-                              restaurantData['usuarioPropietario']['email'] ??
-                                  '',
-                              restaurantData['usuarioPropietario']['telefono'] ??
-                                  'No disponible',
-                            ),
-                          ],
-                        ),
-                      ),
-                      Card(
-                        elevation: 0,
-                        margin: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Padding(
-                                  padding: EdgeInsets.only(left: 12),
-                                  child: Icon(
-                                    Icons.restaurant,
-                                    color: Colors.redAccent,
-                                  ),
                                 ),
-                                const Text(
-                                  "Tu Restaurante",
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.edit,
-                                    color: Colors.redAccent,
-                                  ),
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => EditRestaurantScreen(
-                                          restaurantData: restaurantData,
-                                        ),
-                                      ),
-                                    );
-                                  },
+                                const Icon(
+                                  Icons.edit,
+                                  color: Colors.redAccent,
+                                  size: 24,
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 12),
-                            _infobuild(
-                              "Nombre",
-                              restaurantData["nombre"],
-                              restaurantData["descripcion"],
-                            ),
-                            _infodirection(
-                              "Dirección",
-                              restaurantData['direccion'],
-                            ),
-                            _infoTime(
-                              "Horario",
-                              restaurantData['horarioApertura'],
-                              restaurantData['horarioCierre'],
-                            ),
-                            _infophone("Teléfono", restaurantData['telefono']),
-                            _buildCard(
-                              "Info Extra",
-                              restaurantData['precioPromedio'].toString(),
-                              restaurantData['categoria'],
-                            ),
-                          ],
-                        ),
+                          ),
+                          SizedBox(height: 2),
+                          _buildOwnerCard(
+                            "${authProvider.currentUser?.nombre ?? ''} ${authProvider.currentUser?.apellido ?? ''}",
+                            authProvider.currentUser?.email ?? '',
+                            authProvider.currentUser?.telefono ?? 'No disponible',
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                    Card(
+                      elevation: 0,
+                      margin: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Padding(
+                                padding: EdgeInsets.only(left: 12),
+                                child: Icon(
+                                  Icons.restaurant,
+                                  color: Colors.redAccent,
+                                ),
+                              ),
+                              const Text(
+                                "Tu Restaurante",
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.edit,
+                                  color: Colors.redAccent,
+                                ),
+                                onPressed: () async {
+                                  final result = await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => EditRestaurantScreen(
+                                        restaurantData: restaurantData,
+                                      ),
+                                    ),
+                                  );
+                                  
+                                  // Si se actualizó, recargar datos
+                                  if (result == true && authProvider.email != null) {
+                                    await restaurantProvider.loadOwnerRestaurant(
+                                      authProvider.email!,
+                                    );
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          _infobuild(
+                            "Nombre",
+                            restaurant.nombre,
+                            restaurant.descripcion,
+                          ),
+                          _infodirection(
+                            "Dirección",
+                            restaurant.direccion,
+                          ),
+                          _infoTime(
+                            "Horario",
+                            restaurant.horarioApertura,
+                            restaurant.horarioCierre,
+                          ),
+                          _infophone("Teléfono", restaurant.telefono),
+                          _buildCard(
+                            "Info Extra",
+                            restaurant.precioPromedio.toString(),
+                            restaurant.categoria,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            );
-          },
+            ),
+          ),
         );
       },
     );
@@ -362,7 +386,7 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.grey[100], // fondo elegante
+          color: Colors.grey[100],
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -372,9 +396,9 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
               children: [
                 const Icon(Icons.watch, color: Colors.redAccent, size: 28),
                 const SizedBox(width: 12),
-                Text(
+                const Text(
                   "Horas de servicio",
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
@@ -383,7 +407,7 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
             ),
             const SizedBox(height: 12),
             Text(
-              "Apertura: ${value}" ?? "No disponible",
+              "Apertura: ${value ?? 'No disponible'}",
               style: const TextStyle(
                 fontSize: 16,
                 fontStyle: FontStyle.normal,
@@ -392,7 +416,7 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
             ),
             const SizedBox(height: 12),
             Text(
-              "Cierre: ${value_2}" ?? "No disponible",
+              "Cierre: ${value_2 ?? 'No disponible'}",
               style: const TextStyle(
                 fontSize: 16,
                 fontStyle: FontStyle.normal,
@@ -414,7 +438,7 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.grey[100], // fondo elegante
+          color: Colors.grey[100],
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -428,9 +452,9 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
                   size: 28,
                 ),
                 const SizedBox(width: 12),
-                Text(
+                const Text(
                   "Telefono",
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
@@ -461,7 +485,7 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.grey[100], // fondo elegante
+          color: Colors.grey[100],
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -475,9 +499,9 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
                   size: 28,
                 ),
                 const SizedBox(width: 12),
-                Text(
+                const Text(
                   "Ubicacion",
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
@@ -508,7 +532,7 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.grey[100], // fondo elegante
+          color: Colors.grey[100],
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -532,7 +556,7 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
               ],
             ),
             const SizedBox(height: 12),
-            Text("Descripcion"),
+            const Text("Descripcion"),
             const SizedBox(height: 12),
             Text(
               value_2 ?? "No disponible",
