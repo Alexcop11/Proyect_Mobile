@@ -40,6 +40,9 @@ public class UserBean {
     @Column(name = "ultimo_login")
     private LocalDateTime ultimoLogin;
 
+    @Column(name = "push_token")
+    private String pushToken;
+
     public UserBean() {
     }
 
@@ -140,6 +143,13 @@ public class UserBean {
 
     public enum TipoUsuario {
         NORMAL, RESTAURANTE
+    }
+    public String getPushToken() {
+        return pushToken;
+    }
+
+    public void setPushToken(String pushToken) {
+        this.pushToken = pushToken;
     }
 
 }

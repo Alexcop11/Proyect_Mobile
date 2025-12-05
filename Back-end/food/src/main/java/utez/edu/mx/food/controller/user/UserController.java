@@ -2,6 +2,7 @@ package utez.edu.mx.food.controller.user;
 
 import utez.edu.mx.food.service.user.UserChangeDTO;
 import utez.edu.mx.food.service.user.UserDTO;
+import utez.edu.mx.food.service.user.UserPushTokenDTO;
 import utez.edu.mx.food.service.user.UserService;
 import utez.edu.mx.food.utils.Message;
 import org.slf4j.Logger;
@@ -60,5 +61,10 @@ public class UserController {
         public ResponseEntity<Message> changeUserPassword (@RequestBody UserChangeDTO dto){
             return userService.updatePassword(dto.getId(), dto.getPassword());
         }
+
+    @PatchMapping("/push-token")
+    public ResponseEntity<?> updatePushToken(@RequestBody UserPushTokenDTO dto) {
+        return userService.updatePushToken(dto);
+    }
 
 }

@@ -1,5 +1,9 @@
 package utez.edu.mx.food.service.notification;
 
+import com.google.firebase.messaging.FirebaseMessaging;
+import com.google.firebase.messaging.FirebaseMessagingException;
+import com.google.firebase.messaging.Notification;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,76 +60,39 @@ public class NotificationService {
         return new ResponseEntity<>(new Message(notification.get(), "Notificación encontrada", TypesResponse.SUCCESS), HttpStatus.OK);
     }
 
-    @Transactional(rollbackFor = {SQLException.class})
-    public ResponseEntity<Message> save(NotificationDTO dto) {
-        // Validaciones
-        if (dto.getIdUsuario() == null) {
-            return new ResponseEntity<>(new Message("El usuario es requerido", TypesResponse.WARNING), HttpStatus.BAD_REQUEST);
-        }
+    @Transactional
+    public ResponseEntity<Message> save(NotificationBean notification) {
+        try {
+            notification.setFechaCreacion(LocalDateTime.now());
+            notification.setLeida(false);
 
-        if (dto.getTitulo() == null || dto.getTitulo().trim().isEmpty()) {
-            return new ResponseEntity<>(new Message("El título no puede estar vacío", TypesResponse.WARNING), HttpStatus.BAD_REQUEST);
-        }
+            UserBean usuario = userRepository.findById(notification.getUsuario().getIdUsuario())
+                    .orElse(null);
 
-        if (dto.getTitulo().length() > 200) {
-            return new ResponseEntity<>(new Message("El título no puede exceder 200 caracteres", TypesResponse.WARNING), HttpStatus.BAD_REQUEST);
-        }
+            if (usuario == null)
+                return new ResponseEntity<>(new Message("Usuario no encontrado", TypesResponse.SUCCESS), HttpStatus.BAD_REQUEST);
 
-        if (dto.getMensaje() == null || dto.getMensaje().trim().isEmpty()) {
-            return new ResponseEntity<>(new Message("El mensaje no puede estar vacío", TypesResponse.WARNING), HttpStatus.BAD_REQUEST);
-        }
+            NotificationBean saved = notificationRepository.save(notification);
 
-        if (dto.getMensaje().length() > 1000) {
-            return new ResponseEntity<>(new Message("El mensaje no puede exceder 1000 caracteres", TypesResponse.WARNING), HttpStatus.BAD_REQUEST);
-        }
+            boolean enviado = sendPush(usuario, saved);
 
-        if (dto.getTipo() == null) {
-            return new ResponseEntity<>(new Message("El tipo de notificación es requerido", TypesResponse.WARNING), HttpStatus.BAD_REQUEST);
-        }
-
-        Optional<UserBean> usuario = userRepository.findById(dto.getIdUsuario());
-        if (!usuario.isPresent()) {
-            return new ResponseEntity<>(new Message("Usuario no encontrado", TypesResponse.ERROR), HttpStatus.NOT_FOUND);
-        }
-
-        // Validar restaurante si es necesario según el tipo
-        RestaurantBean restaurante = null;
-        if (dto.getIdRestaurante() != null) {
-            Optional<RestaurantBean> restauranteOptional = restaurantRepository.findById(dto.getIdRestaurante());
-            if (!restauranteOptional.isPresent()) {
-                return new ResponseEntity<>(new Message("Restaurante no encontrado", TypesResponse.ERROR), HttpStatus.NOT_FOUND);
+            if (enviado) {
+                saved.setFechaEnvio(LocalDateTime.now());
+                notificationRepository.save(saved);
+                return new ResponseEntity<>(new Message(saved,"Notificación enviada y guardada", TypesResponse.SUCCESS),
+                        HttpStatus.OK);
+            } else {
+                return new ResponseEntity<>(new Message(saved,"Notificación guardada, pero no enviada (sin pushToken o error FCM)", TypesResponse.WARNING),
+                        HttpStatus.OK);
             }
-            restaurante = restauranteOptional.get();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return new ResponseEntity<>(new Message("Error al guardar notificación", TypesResponse.ERROR),
+                    HttpStatus.BAD_REQUEST);
         }
-
-        // Validaciones específicas por tipo
-        if (dto.getTipo() == NotificationBean.TipoNotificacion.NUEVO_RESTAURANTE && dto.getIdRestaurante() == null) {
-            return new ResponseEntity<>(new Message("Para notificaciones de nuevo restaurante se requiere el ID del restaurante", TypesResponse.WARNING), HttpStatus.BAD_REQUEST);
-        }
-
-        if (dto.getTipo() == NotificationBean.TipoNotificacion.ACTUALIZACION_MENU && dto.getIdRestaurante() == null) {
-            return new ResponseEntity<>(new Message("Para notificaciones de actualización de menú se requiere el ID del restaurante", TypesResponse.WARNING), HttpStatus.BAD_REQUEST);
-        }
-
-        // Crear entidad
-        NotificationBean notification = new NotificationBean();
-        notification.setUsuario(usuario.get());
-        notification.setTitulo(dto.getTitulo());
-        notification.setMensaje(dto.getMensaje());
-        notification.setTipo(dto.getTipo());
-        notification.setRestaurante(restaurante);
-        notification.setLeida(dto.getLeida() != null ? dto.getLeida() : false);
-        notification.setFechaCreacion(LocalDateTime.now());
-        notification.setFechaEnvio(LocalDateTime.now());
-
-        notification = notificationRepository.saveAndFlush(notification);
-        if (notification == null) {
-            return new ResponseEntity<>(new Message("La notificación no se pudo registrar", TypesResponse.ERROR), HttpStatus.BAD_REQUEST);
-        }
-
-        logger.info("Notificación registrada correctamente - ID: {}", notification.getIdNotificacion());
-        return new ResponseEntity<>(new Message(notification, "Notificación registrada correctamente", TypesResponse.SUCCESS), HttpStatus.CREATED);
     }
+
 
     @Transactional(rollbackFor = {SQLException.class})
     public ResponseEntity<Message> update(NotificationDTO dto) {
@@ -276,4 +243,38 @@ public class NotificationService {
         List<NotificationBean> notifications = notificationRepository.findByFechaCreacionBetween(startDate, endDate);
         return new ResponseEntity<>(new Message(notifications, "Notificaciones por rango de fechas", TypesResponse.SUCCESS), HttpStatus.OK);
     }
+
+
+
+    public boolean sendPush(UserBean usuario, NotificationBean noti) {
+        try {
+            if (usuario.getPushToken() == null || usuario.getPushToken().isEmpty()) {
+                System.out.println("⚠ Usuario sin pushToken, no se envió push");
+                return false;
+            }
+
+            com.google.firebase.messaging.Message message =
+                    com.google.firebase.messaging.Message.builder()
+                            .setToken(usuario.getPushToken())
+                            .setNotification(
+                                    com.google.firebase.messaging.Notification.builder()
+                                            .setTitle(noti.getTitulo())
+                                            .setBody(noti.getMensaje())
+                                            .build()
+                            )
+                            .putData("tipo", noti.getTipo().name())
+                            .putData("idNotificacion", noti.getIdNotificacion() + "")
+                            .build();
+
+
+            FirebaseMessaging.getInstance().send(message);
+            return true;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+
 }
