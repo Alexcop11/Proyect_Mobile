@@ -1,0 +1,22 @@
+[33m30f4f7c[m[33m ([m[1;36mHEAD[m[33m, [m[1;31morigin/feature/client[m[33m)[m HEAD@{0}: pull --rebase origin feature/client (start): checkout 30f4f7cad2b1162110eb9b0c562e19c737322388
+[33m1faebbc[m[33m ([m[1;32mfeature/client[m[33m)[m HEAD@{1}: commit: [UPDATE] conexion completa
+[33m76065f9[m HEAD@{2}: reset: moving to HEAD
+[33m76065f9[m HEAD@{3}: commit (merge): MERGE completo entre restaurantes y usuarios
+[33mc65d34f[m HEAD@{4}: checkout: moving from feature/client to feature/client
+[33mc65d34f[m HEAD@{5}: commit: Detalles de restaurantes.
+[33mf71e9bc[m HEAD@{6}: rebase (finish): returning to refs/heads/feature/client
+[33mf71e9bc[m HEAD@{7}: commit (amend): conexion incompleta de perfil al igual que restaurantes
+[33m7a1e873[m HEAD@{8}: commit: conexion incompleta de perfil al igual que restaurantes
+[33m9df79ab[m HEAD@{9}: rebase (start): checkout origin/develop
+[33m30f4f7c[m[33m ([m[1;36mHEAD[m[33m, [m[1;31morigin/feature/client[m[33m)[m HEAD@{10}: checkout: moving from feature/client to feature/client
+[33m30f4f7c[m[33m ([m[1;36mHEAD[m[33m, [m[1;31morigin/feature/client[m[33m)[m HEAD@{11}: reset: moving to HEAD
+[33m30f4f7c[m[33m ([m[1;36mHEAD[m[33m, [m[1;31morigin/feature/client[m[33m)[m HEAD@{12}: reset: moving to HEAD
+[33m30f4f7c[m[33m ([m[1;36mHEAD[m[33m, [m[1;31morigin/feature/client[m[33m)[m HEAD@{13}: reset: moving to HEAD
+[33m30f4f7c[m[33m ([m[1;36mHEAD[m[33m, [m[1;31morigin/feature/client[m[33m)[m HEAD@{14}: reset: moving to HEAD
+[33m30f4f7c[m[33m ([m[1;36mHEAD[m[33m, [m[1;31morigin/feature/client[m[33m)[m HEAD@{15}: checkout: moving from feature/client to feature/client
+[33m30f4f7c[m[33m ([m[1;36mHEAD[m[33m, [m[1;31morigin/feature/client[m[33m)[m HEAD@{16}: commit: [CREATE] home de clientes,card de restaurantes
+[33m197e1be[m HEAD@{17}: checkout: moving from develop to feature/client
+[33m3a035c0[m[33m ([m[1;32mdevelop[m[33m)[m HEAD@{18}: checkout: moving from develop to develop
+[33m3a035c0[m[33m ([m[1;32mdevelop[m[33m)[m HEAD@{19}: checkout: moving from feature/client to develop
+[33m197e1be[m HEAD@{20}: checkout: moving from feature/client to feature/client
+[33m197e1be[m HEAD@{21}: commit (initial): Commit Inicial.
