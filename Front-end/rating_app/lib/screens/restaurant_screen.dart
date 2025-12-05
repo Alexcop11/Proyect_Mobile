@@ -3,13 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:rating_app/core/providers/auth_provider.dart';
 import 'package:rating_app/core/providers/restaurant_provider.dart';
 import 'package:rating_app/screens/login_screen.dart';
-import 'package:rating_app/screens/restaurant_manage_screen.dart';
-import 'package:rating_app/screens/restaurant_reviews.dart';
-import 'package:rating_app/widgets/NavigationScaffold.dart';
-import 'package:rating_app/screens/auth_wrapper.dart';
-import 'package:rating_app/widgets/custom_card.dart';
-import 'package:rating_app/widgets/custom_rate.dart';
-import 'package:rating_app/widgets/custom_rating.dart';
+import 'package:rating_app/screens/main_restaurant_navigation.dart';
+import 'package:rating_app/widgets/common/app_bar_custom.dart';
 
 class RestaurantScreen extends StatefulWidget {
   const RestaurantScreen({super.key});
@@ -22,7 +17,6 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   @override
   void initState() {
     super.initState();
-    // Cargar datos del restaurante al inicializar
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final restaurantProvider = Provider.of<RestaurantProvider>(
@@ -42,7 +36,6 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       builder: (context, authProvider, restaurantProvider, child) {
         if (!authProvider.isAuthenticated) return const LoginScreen();
 
-        // Mostrar loading mientras carga
         if (restaurantProvider.isLoading) {
           return const Scaffold(
             body: Center(
@@ -51,7 +44,6 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
           );
         }
 
-        // Si hay error
         if (restaurantProvider.errorMessage != null) {
           return Scaffold(
             body: Center(
@@ -76,7 +68,6 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
           );
         }
 
-        // Si no tiene restaurante
         final restaurant = restaurantProvider.ownerRestaurant;
         if (restaurant == null) {
           return const Scaffold(
@@ -86,55 +77,11 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
           );
         }
 
-        return Navigationscaffold(
-          currentIndex: 0,
-          onTap: (index) {
-            switch (index) {
-              case 0:
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const RestaurantScreen(),
-                  ),
-                );
-                break;
-              case 1:
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const RestaurantReviews(),
-                  ),
-                );
-                break;
-              case 2:
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const Restaurant_manage_Screen(),
-                  ),
-                );
-                break;
-            }
-          },
-          appBar: AppBar(
-            title: const Text("FoodFinder"),
-            backgroundColor: Colors.redAccent,
-            foregroundColor: Colors.white,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.logout),
-                onPressed: () async {
-                  await authProvider.logout();
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AuthWrapper()),
-                    (route) => false,
-                  );
-                },
-              ),
-            ],
+        return Scaffold(
+          appBar:  AppBarCustom(
+            title: 'FoodFinder',
           ),
-          child: RefreshIndicator(
+          body: RefreshIndicator(
             onRefresh: () async {
               if (authProvider.email != null) {
                 await restaurantProvider.loadOwnerRestaurant(
@@ -145,50 +92,70 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               child: Padding(
-                padding: const EdgeInsets.all(1),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 2,
-                        vertical: 12,
-                      ),
-                      child: custom_card(
-                        nombre: authProvider.currentUser?.nombre ?? 'Usuario',
-                        restaurante: restaurant.nombre,
-                      ),
+                    // Card de saludo
+                    _buildGreetingCard(
+                      nombre: authProvider.currentUser?.nombre ?? 'Usuario',
+                      restaurante: restaurant.nombre,
                     ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Tarjetas de estadísticas
                     Row(
                       children: [
                         Expanded(
-                          child: custom_rating(
-                            icon: Icons.favorite,
-                            iconColor: Colors.redAccent,
-                            title: "Favoritos",
+                          child: _buildStatCard(
+                            icon: Icons.favorite_border,
+                            iconColor: const Color(0xFFFF6B6B),
+                            label: 'Agregado a favoritos',
                             count: restaurantProvider.favoritesCount.toString(),
                           ),
                         ),
+                        Container(
+                          width: 1,
+                          height: 80,
+                          color: const Color(0xFFE0E0E0),
+                        ),
                         Expanded(
-                          child: custom_rating(
-                            icon: Icons.reviews,
-                            iconColor: Colors.amberAccent,
-                            title: "Reseñas",
+                          child: _buildStatCard(
+                            icon: Icons.star_border,
+                            iconColor: const Color(0xFFFFC107),
+                            label: 'Reseñas totales',
                             count: restaurantProvider.totalReviews.toString(),
                           ),
                         ),
                       ],
                     ),
-                    custom_rate(
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Sección de valoración
+                    const Text(
+                      'VALORACIÓN',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF666666),
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Card de valoración
+                    _buildRatingCard(
                       rating: restaurantProvider.averageRating,
                       totalReviews: restaurantProvider.totalReviews,
                       onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const RestaurantReviews(),
-                          ),
-                        );
+                        // Navegar a la pantalla de reseñas usando el navigation principal
+                        final navigationState = context.findAncestorStateOfType<State<MainRestaurantNavigation>>();
+                        if (navigationState != null) {
+                          (navigationState as dynamic).navigateToReviews();
+                        }
                       },
                     ),
                   ],
@@ -198,6 +165,200 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildGreetingCard({
+    required String nombre,
+    required String restaurante,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Hola, $nombre',
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1A1A1A),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            restaurante,
+            style: const TextStyle(
+              fontSize: 16,
+              color: Color(0xFF666666),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String count,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(
+            icon,
+            color: iconColor,
+            size: 24,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            count,
+            style: const TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1A1A1A),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Color(0xFF666666),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRatingCard({
+    required double rating,
+    required int totalReviews,
+    required VoidCallback onPressed,
+  }) {
+    int fullStars = rating.floor();
+    bool hasHalfStar = (rating - fullStars) >= 0.5;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Estrellas
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(5, (index) {
+              if (index < fullStars) {
+                return const Icon(
+                  Icons.star,
+                  color: Color(0xFFFFC107),
+                  size: 32,
+                );
+              } else if (index == fullStars && hasHalfStar) {
+                return const Icon(
+                  Icons.star_half,
+                  color: Color(0xFFFFC107),
+                  size: 32,
+                );
+              } else {
+                return const Icon(
+                  Icons.star_border,
+                  color: Color(0xFFE0E0E0),
+                  size: 32,
+                );
+              }
+            }),
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // Rating número
+          Text(
+            rating.toStringAsFixed(1),
+            style: const TextStyle(
+              fontSize: 48,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1A1A1A),
+            ),
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Texto de reseñas
+          Text(
+            'Basado en $totalReviews reseñas',
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF666666),
+            ),
+          ),
+          
+          const SizedBox(height: 20),
+          
+          // Botón de ver reseñas
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: onPressed,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF6B6B),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              child: const Text(
+                'Ver reseñas',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

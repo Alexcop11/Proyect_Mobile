@@ -6,10 +6,11 @@ import 'package:rating_app/screens/edit_restaurant.dart';
 import 'package:rating_app/screens/edit_profile_screen.dart';
 import 'package:rating_app/screens/login_screen.dart';
 import 'package:rating_app/screens/register_restaurant.dart';
-import 'package:rating_app/screens/restaurant_reviews.dart';
-import 'package:rating_app/screens/restaurant_screen.dart';
-import 'package:rating_app/widgets/NavigationScaffold.dart';
+import 'package:rating_app/widgets/client/profile_info_card.dart';
+import 'package:rating_app/widgets/client/profile_option_card.dart';
+import 'package:rating_app/widgets/client/edit_security_form.dart';
 import 'package:rating_app/screens/auth_wrapper.dart';
+import 'package:rating_app/widgets/common/app_bar_custom.dart';
 
 class Restaurant_manage_Screen extends StatefulWidget {
   const Restaurant_manage_Screen({super.key});
@@ -20,21 +21,147 @@ class Restaurant_manage_Screen extends StatefulWidget {
 }
 
 class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
+  bool _isLoading = true;
+  bool _isSaving = false;
+  String? _expandedSection;
+
   @override
   void initState() {
     super.initState();
-    // Cargar el restaurante del propietario cuando se inicializa la pantalla
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final restaurantProvider = Provider.of<RestaurantProvider>(
-        context,
-        listen: false,
-      );
-
-      if (authProvider.email != null) {
-        restaurantProvider.loadOwnerRestaurant(authProvider.email!);
-      }
+      _loadData();
     });
+  }
+
+  Future<void> _loadData() async {
+    try {
+      final authProvider = context.read<AuthProvider>();
+      final restaurantProvider = context.read<RestaurantProvider>();
+
+      // Cargar usuario si no está cargado
+      if (authProvider.currentUser == null) {
+        await authProvider.loadCurrentUser();
+      }
+
+      // Cargar restaurante del propietario
+      if (authProvider.email != null) {
+        await restaurantProvider.loadOwnerRestaurant(authProvider.email!);
+      }
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      debugPrint('❌ Error cargando datos: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showError('Error al cargar datos: ${e.toString()}');
+      }
+    }
+  }
+
+  void _toggleSection(String section) {
+    setState(() {
+      _expandedSection = _expandedSection == section ? null : section;
+    });
+  }
+
+  Future<void> _guardarCambiosSeguridad(String currentPassword, String newPassword) async {
+    if (_isSaving) return;
+
+    setState(() => _isSaving = true);
+
+    try {
+      final authProvider = context.read<AuthProvider>();
+      final success = await authProvider.changePassword(newPassword);
+
+      if (!mounted) return;
+
+      setState(() => _isSaving = false);
+
+      if (success) {
+        setState(() {
+          _expandedSection = null; // Colapsar el formulario
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Contraseña actualizada correctamente'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else {
+        _showError(authProvider.errorMessage ?? 'No se pudo actualizar la contraseña');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      _showError('Error al cambiar contraseña: ${e.toString()}');
+      debugPrint('❌ Error cambiando contraseña: $e');
+    }
+  }
+
+  void _cerrarSesion() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cerrar Sesión'),
+        content: const Text('¿Estás seguro que deseas cerrar sesión?'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await context.read<AuthProvider>().logout();
+
+              if (mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AuthWrapper()),
+                  (route) => false,
+                );
+                
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Sesión cerrada correctamente'),
+                    backgroundColor: Colors.green,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF6B6B),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Cerrar Sesión'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   @override
@@ -43,19 +170,18 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
       builder: (context, authProvider, restaurantProvider, child) {
         if (!authProvider.isAuthenticated) return const LoginScreen();
 
-        // Mostrar loading mientras carga el restaurante
-        if (restaurantProvider.isLoading) {
+        // Mostrar loading mientras carga
+        if (_isLoading || restaurantProvider.isLoading) {
           return Scaffold(
             backgroundColor: Colors.white,
-            appBar: AppBar(
-              title: const Text("FoodFinder"),
-              backgroundColor: Colors.redAccent,
-              foregroundColor: Colors.white,
-            ),
+            appBar: AppBarCustom(
+            title: 'ss',
+            onNotificationTap: () {
+              debugPrint('Notificaciones tapped');
+            },
+          ),
             body: const Center(
-              child: CircularProgressIndicator(
-                color: Colors.redAccent,
-              ),
+              child: CircularProgressIndicator(color: Colors.redAccent),
             ),
           );
         }
@@ -67,7 +193,7 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
           return const RegisterRestaurant();
         }
 
-        // Convertir Restaurant a Map para mantener compatibilidad con los widgets existentes
+        // Convertir Restaurant a Map para mantener compatibilidad
         final restaurantData = {
           'idRestaurante': restaurant.idRestaurante,
           'nombre': restaurant.nombre,
@@ -85,217 +211,52 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
           'activo': restaurant.activo,
         };
 
-        return Navigationscaffold(
-          currentIndex: 2,
-          onTap: (index) {
-            switch (index) {
-              case 0:
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const RestaurantScreen(),
-                  ),
-                );
-                break;
-              case 1:
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const RestaurantReviews(),
-                  ),
-                );
-                break;
-              case 2:
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const Restaurant_manage_Screen(),
-                  ),
-                );
-                break;
-            }
-          },
-          appBar: AppBar(
-            title: const Text("FoodFinder"),
-            backgroundColor: Colors.redAccent,
-            foregroundColor: Colors.white,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.logout),
-                onPressed: () async {
-                  await authProvider.logout();
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AuthWrapper()),
-                    (route) => false,
-                  );
-                },
-              ),
-            ],
+        return Scaffold(
+          appBar: AppBarCustom(
+            title: 'Configuración'
           ),
-          child: RefreshIndicator(
-            onRefresh: () async {
-              if (authProvider.email != null) {
-                await restaurantProvider.loadOwnerRestaurant(
-                  authProvider.email!,
-                );
-              }
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
+          body: RefreshIndicator(
+            onRefresh: _loadData,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Card de Información del Usuario
-                    Card(
-                      elevation: 0,
-                      margin: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.person,
-                                  color: Colors.redAccent,
-                                  size: 28,
-                                ),
-                                const SizedBox(width: 16),
-                                const Expanded(
-                                  child: Center(
-                                    child: Text(
-                                      "Información del Usuario",
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.edit,
-                                    color: Colors.redAccent,
-                                    size: 24,
-                                  ),
-                                  onPressed: () async {
-                                    final result = await Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => EditProfileScreen(
-                                          idUsuario: authProvider.currentUser?.idUsuario ?? 0,
-                                          nombre: authProvider.currentUser?.nombre,
-                                          apellido: authProvider.currentUser?.apellido,
-                                          email: authProvider.currentUser?.email,
-                                          telefono: authProvider.currentUser?.telefono,
-                                        ),
-                                      ),
-                                    );
-                                    
-                                    // Si se actualizó, recargar datos del usuario
-                                    if (result == true) {
-                                      await authProvider.loadCurrentUser();
-                                    }
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          _buildOwnerCard(
-                            "${authProvider.currentUser?.nombre ?? ''} ${authProvider.currentUser?.apellido ?? ''}",
-                            authProvider.currentUser?.email ?? '',
-                            authProvider.currentUser?.telefono ?? 'No disponible',
-                          ),
-                        ],
-                      ),
-                    ),
-                    
+                    _buildUserInfoSection(authProvider),
+
+                    const SizedBox(height: 16),
+
                     // Card de Información del Restaurante
-                    Card(
-                      elevation: 0,
-                      margin: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Padding(
-                                padding: EdgeInsets.only(left: 12),
-                                child: Icon(
-                                  Icons.restaurant,
-                                  color: Colors.redAccent,
-                                ),
-                              ),
-                              const Text(
-                                "Tu Restaurante",
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.edit,
-                                  color: Colors.redAccent,
-                                ),
-                                onPressed: () async {
-                                  final result = await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => EditRestaurantScreen(
-                                        restaurantData: restaurantData,
-                                      ),
-                                    ),
-                                  );
-                                  
-                                  // Si se actualizó, recargar datos
-                                  if (result == true && authProvider.email != null) {
-                                    await restaurantProvider.loadOwnerRestaurant(
-                                      authProvider.email!,
-                                    );
-                                  }
-                                },
-                              ),
-                            ],
+                    _buildRestaurantInfoSection(restaurant, restaurantData, authProvider),
+
+                    const SizedBox(height: 16),
+
+                    // Sección de Seguridad y Configuración
+                    _buildSecuritySection(),
+
+                    const SizedBox(height: 24),
+
+                    // Botón de Cerrar Sesión
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _cerrarSesion,
+                        icon: const Icon(Icons.logout, size: 18),
+                        label: const Text('Cerrar Sesión'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFFF6B6B),
+                          side: const BorderSide(color: Color(0xFFFF6B6B)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          const SizedBox(height: 12),
-                          _infobuild(
-                            "Nombre",
-                            restaurant.nombre,
-                            restaurant.descripcion,
-                          ),
-                          _infodirection(
-                            "Dirección",
-                            restaurant.direccion,
-                          ),
-                          _infoTime(
-                            "Horario",
-                            restaurant.horarioApertura,
-                            restaurant.horarioCierre,
-                          ),
-                          _infophone("Teléfono", restaurant.telefono),
-                          _buildCard(
-                            "Info Extra",
-                            restaurant.precioPromedio.toString(),
-                            restaurant.categoria,
-                          ),
-                        ],
+                        ),
                       ),
                     ),
+                    const SizedBox(height: 32),
                   ],
                 ),
               ),
@@ -306,290 +267,219 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
     );
   }
 
-  Widget _buildOwnerCard(String? nombre, String? correo, String? telefono) {
-    return Card(
-      elevation: 0.5,
-      margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 12),
-            if (nombre != null)
-              Text("Nombre: $nombre", style: const TextStyle(fontSize: 16)),
-            if (correo != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  "Correo Electrónico: $correo",
-                  style: const TextStyle(fontSize: 16),
-                ),
-              ),
-            if (telefono != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  "Teléfono: ${telefono.isEmpty ? 'No disponible' : telefono}",
-                  style: const TextStyle(fontSize: 16),
-                ),
-              ),
-          ],
-        ),
+  Widget _buildUserInfoSection(AuthProvider authProvider) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildCard(String title, String? value, String? value2) {
-    return Card(
-      elevation: 0.5,
-      margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      child: Column(
+        children: [
+          // Encabezado con botón de editar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Icon(
-                  Icons.local_offer,
-                  color: Colors.redAccent,
-                  size: 28,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (value != null && value.isNotEmpty)
-              Text(
-                "Precio Promedio: \$${value}",
-                style: const TextStyle(fontSize: 16, color: Colors.black87),
-              ),
-            if (value2 != null && value2.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  "Categoría: $value2",
-                  style: const TextStyle(fontSize: 16, color: Colors.black87),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _infoTime(String title, String? value, String? value_2) {
-    return Card(
-      elevation: 0.5,
-      shadowColor: Colors.black.withOpacity(0.3),
-      margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.watch, color: Colors.redAccent, size: 28),
-                const SizedBox(width: 12),
                 const Text(
-                  "Horas de servicio",
+                  'Información del Usuario',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A),
                   ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.redAccent),
+                  onPressed: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EditProfileScreen(
+                          idUsuario: authProvider.currentUser?.idUsuario ?? 0,
+                          nombre: authProvider.currentUser?.nombre,
+                          apellido: authProvider.currentUser?.apellido,
+                          email: authProvider.currentUser?.email,
+                          telefono: authProvider.currentUser?.telefono,
+                        ),
+                      ),
+                    );
+
+                    if (result == true) {
+                      await authProvider.loadCurrentUser();
+                    }
+                  },
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              "Apertura: ${value ?? 'No disponible'}",
-              style: const TextStyle(
-                fontSize: 16,
-                fontStyle: FontStyle.normal,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              "Cierre: ${value_2 ?? 'No disponible'}",
-              style: const TextStyle(
-                fontSize: 16,
-                fontStyle: FontStyle.normal,
-                color: Colors.black87,
-              ),
-            ),
-          ],
-        ),
+          ),
+
+          // ProfileInfoCard
+          ProfileInfoCard(
+            icon: Icons.person_outline,
+            iconColor: const Color(0xFF4FC3F7),
+            iconBgColor: const Color(0xFFE3F2FD),
+            title: 'Detalles del Propietario',
+            details: {
+              'Nombre Completo:':
+                  authProvider.currentUser?.nombreCompleto ?? 'No disponible',
+              'Correo Electrónico:':
+                  authProvider.currentUser?.email ?? 'No disponible',
+              'Teléfono:':
+                  authProvider.currentUser?.telefono ?? 'No disponible',
+            },
+          ),
+        ],
       ),
     );
   }
 
-  Widget _infophone(String title, String? value) {
-    return Card(
-      elevation: 0.5,
-      shadowColor: Colors.black.withOpacity(0.3),
-      margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+  Widget _buildRestaurantInfoSection(
+    restaurant,
+    Map<String, dynamic> restaurantData,
+    AuthProvider authProvider,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Encabezado con botón de editar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Icon(
-                  Icons.phone_in_talk,
-                  color: Colors.redAccent,
-                  size: 28,
-                ),
-                const SizedBox(width: 12),
                 const Text(
-                  "Telefono",
+                  'Tu Restaurante',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A),
                   ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.redAccent),
+                  onPressed: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => EditRestaurantScreen(
+                          restaurantData: restaurantData,
+                        ),
+                      ),
+                    );
+
+                    if (result == true && authProvider.email != null) {
+                      final restaurantProvider = context.read<RestaurantProvider>();
+                      await restaurantProvider.loadOwnerRestaurant(
+                        authProvider.email!,
+                      );
+                    }
+                  },
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              value ?? "No disponible",
-              style: const TextStyle(
-                fontSize: 16,
-                fontStyle: FontStyle.normal,
-                color: Colors.black87,
-              ),
-            ),
-          ],
-        ),
+          ),
+
+          // Información Básica
+          ProfileInfoCard(
+            icon: Icons.restaurant_menu,
+            iconColor: const Color(0xFFFF6B6B),
+            iconBgColor: const Color(0xFFFFE5E5),
+            title: 'Información Básica',
+            details: {
+              'Nombre:': restaurant.nombre ?? 'No disponible',
+              'Descripción:': restaurant.descripcion ?? 'No disponible',
+              'Categoría:': restaurant.categoria ?? 'No disponible',
+            },
+          ),
+
+          // Ubicación
+          ProfileInfoCard(
+            icon: Icons.location_on,
+            iconColor: const Color(0xFFFFA726),
+            iconBgColor: const Color(0xFFFFF3E0),
+            title: 'Ubicación',
+            details: {
+              'Dirección:': restaurant.direccion ?? 'No disponible',
+            },
+          ),
+
+          // Horarios
+          ProfileInfoCard(
+            icon: Icons.access_time,
+            iconColor: const Color(0xFF66BB6A),
+            iconBgColor: const Color(0xFFE8F5E9),
+            title: 'Horarios',
+            details: {
+              'Apertura:': restaurant.horarioApertura ?? 'No disponible',
+              'Cierre:': restaurant.horarioCierre ?? 'No disponible',
+            },
+          ),
+
+          // Contacto y Precios
+          ProfileInfoCard(
+            icon: Icons.phone,
+            iconColor: const Color(0xFF42A5F5),
+            iconBgColor: const Color(0xFFE3F2FD),
+            title: 'Contacto y Precios',
+            details: {
+              'Teléfono:': restaurant.telefono ?? 'No disponible',
+              'Precio Promedio:':
+                  '\$${restaurant.precioPromedio?.toString() ?? '0.00'}',
+            },
+          ),
+        ],
       ),
     );
   }
 
-  Widget _infodirection(String title, String? value) {
-    return Card(
-      elevation: 0.5,
-      shadowColor: Colors.black.withOpacity(0.3),
-      margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(
-                  Icons.location_city,
-                  color: Colors.redAccent,
-                  size: 28,
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  "Ubicacion",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
+  Widget _buildSecuritySection() {
+    return Column(
+      children: [
+        // BOTÓN "CAMBIAR CONTRASEÑA"
+        if (_expandedSection != 'seguridad')
+          ProfileOptionCard(
+            icon: Icons.lock,
+            iconColor: const Color(0xFF66BB6A),
+            iconBgColor: const Color(0xFFE8F5E9),
+            title: 'Cambiar Contraseña',
+            subtitle: 'Actualiza tu seguridad',
+            trailing: Icon(
+              Icons.chevron_right,
+              color: Colors.grey[400],
+              size: 20,
             ),
-            const SizedBox(height: 12),
-            Text(
-              value ?? "No disponible",
-              style: const TextStyle(
-                fontSize: 16,
-                fontStyle: FontStyle.normal,
-                color: Colors.black87,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+            onTap: () => _toggleSection('seguridad'),
+          ),
 
-  Widget _infobuild(String title, String? value, String? value_2) {
-    return Card(
-      elevation: 0.5,
-      shadowColor: Colors.black.withOpacity(0.3),
-      margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.grey[100],
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(
-                  Icons.restaurant_menu,
-                  color: Colors.redAccent,
-                  size: 28,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  value ?? "No disponible",
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            const Text("Descripcion"),
-            const SizedBox(height: 12),
-            Text(
-              value_2 ?? "No disponible",
-              style: const TextStyle(
-                fontSize: 16,
-                fontStyle: FontStyle.normal,
-                color: Colors.black87,
-              ),
-            ),
-          ],
-        ),
-      ),
+        // FORMULARIO DE SEGURIDAD
+        if (_expandedSection == 'seguridad')
+          EditSecurityForm(
+            onSave: _guardarCambiosSeguridad,
+            onCancel: () => setState(() => _expandedSection = null),
+            isSaving: _isSaving,
+          ),
+      ],
     );
   }
 }

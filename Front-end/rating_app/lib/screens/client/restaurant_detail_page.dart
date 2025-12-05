@@ -139,7 +139,6 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage>
                       ),
                       tabs: const [
                         Tab(text: 'Información'),
-                        Tab(text: 'Menú'),
                         Tab(text: 'Reseñas'),
                       ],
                     ),
@@ -155,8 +154,6 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage>
                   horario: widget.horario,
                   phone: widget.phone,
                 ),
-                const MenuTab(),
-                // ✅ CORRECCIÓN: Pasar idRestaurante al ReviewsTab
                 ReviewsTab(
                   idRestaurante: widget.restaurantId,
                 ),

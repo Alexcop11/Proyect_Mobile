@@ -10,10 +10,7 @@ class ExploreScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F8F8),
       appBar: AppBarCustom(
-        title: 'Explorar',
-        onNotificationTap: () {
-          debugPrint('Notificaciones tapped');
-        },
+        title: 'Explorar'
       ),
       body: Column(
         children: [

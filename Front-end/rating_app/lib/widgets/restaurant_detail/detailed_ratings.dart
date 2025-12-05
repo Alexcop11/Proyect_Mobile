@@ -10,7 +10,6 @@ class DetailedRatings extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Calcular promedios de cada categoría
     final ratings = _calculateAverageRatings();
 
     final categories = [
@@ -20,37 +19,69 @@ class DetailedRatings extends StatelessWidget {
     ];
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: categories.map((category) {
+        double percent = (category['rating'] as double) / 5;
+
         return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.only(bottom: 16),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              // Nombre categoría
               SizedBox(
                 width: 80,
                 child: Text(
                   category['name'] as String,
                   style: const TextStyle(
                     fontSize: 14,
-                    color: Color(0xFF666666),
+                    color: Color(0xFF444444),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
+
+              // Barra con degradado
               Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: (category['rating'] as double) / 5,
-                    backgroundColor: Colors.grey[200],
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      Color(0xFFFFC107),
-                    ),
-                    minHeight: 8,
+                child: Container(
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final width = constraints.maxWidth * percent;
+
+                      return Stack(
+                        children: [
+                          // Barra coloreada en gradiente
+                          Container(
+                            width: width,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFFFF6A5D), // rojo suave
+                                  Color(0xFFFFE067), // amarillo
+                                ],
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
+
               const SizedBox(width: 12),
+
+              // Valor numérico
               Text(
-                '${(category['rating'] as double).toStringAsFixed(1)}',
+                (category['rating'] as double).toStringAsFixed(1),
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,

@@ -15,14 +15,6 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _selectedIndex = 0;
 
-  // Lista de pantallas
-  static const List<Widget> _screens = [
-    HomeScreen(),
-    ExploreScreen(), // Ahora incluye el mapa
-    FavoritesScreen(),
-    ProfileScreen(),
-  ];
-
   void _onItemTapped(int index) {
     if (index != _selectedIndex) {
       setState(() {
@@ -37,7 +29,15 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
-        children: _screens,
+        children: [
+          const HomeScreen(),
+          const ExploreScreen(),
+          // Pasar directamente la función _onItemTapped
+          FavoritesScreen(
+            onNavigateToHome: () => _onItemTapped(0),
+          ),
+          const ProfileScreen(),
+        ],
       ),
       bottomNavigationBar: BottomNavigationCustom(
         selectedIndex: _selectedIndex,

@@ -240,11 +240,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F8F8),
       appBar: AppBarCustom(
-        title: 'Mi Perfil',
-        showBackButton: false,
-        onNotificationTap: () {
-          debugPrint('Notificaciones tapped');
-        },
+        title: 'Mi Perfil'
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

@@ -5,7 +5,7 @@ import 'package:rating_app/core/providers/auth_provider.dart';
 import 'package:rating_app/core/providers/favorite_provider.dart';
 import 'package:rating_app/screens/client/restaurant_detail_page.dart';
 
-class RestaurantCard extends StatelessWidget {
+class RestaurantCard extends StatefulWidget {
   final Restaurant restaurant;
 
   const RestaurantCard({
@@ -13,7 +13,43 @@ class RestaurantCard extends StatelessWidget {
     required this.restaurant,
   }) : super(key: key);
 
+  @override
+  State<RestaurantCard> createState() => _RestaurantCardState();
+}
+
+class _RestaurantCardState extends State<RestaurantCard> {
+  bool _isProcessing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Verificar el estado inicial del favorito
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkInitialFavoriteStatus();
+    });
+  }
+
+  Future<void> _checkInitialFavoriteStatus() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final favoriteProvider = Provider.of<FavoriteProvider>(context, listen: false);
+    
+    if (authProvider.currentUser != null && widget.restaurant.idRestaurante != null) {
+      // Verificar si ya está cargado en el provider
+      final isInCache = favoriteProvider.isFavorite(widget.restaurant.idRestaurante!);
+      
+      // Si no está en cache, verificar con el servidor
+      if (!isInCache) {
+        await favoriteProvider.checkFavoriteStatus(
+          userId: authProvider.currentUser!.idUsuario!,
+          restaurantId: widget.restaurant.idRestaurante!,
+        );
+      }
+    }
+  }
+
   Future<void> _handleFavoriteTap(BuildContext context) async {
+    if (_isProcessing) return; // Evitar múltiples clicks
+    
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final favoriteProvider = Provider.of<FavoriteProvider>(context, listen: false);
 
@@ -28,8 +64,12 @@ class RestaurantCard extends StatelessWidget {
       return;
     }
 
-    final restaurantId = restaurant.idRestaurante;
+    final restaurantId = widget.restaurant.idRestaurante;
     if (restaurantId == null) return;
+
+    setState(() {
+      _isProcessing = true;
+    });
 
     final isFavorite = favoriteProvider.isFavorite(restaurantId);
 
@@ -37,6 +77,10 @@ class RestaurantCard extends StatelessWidget {
       userId: authProvider.currentUser!.idUsuario!,
       restaurantId: restaurantId,
     );
+
+    setState(() {
+      _isProcessing = false;
+    });
 
     if (success && context.mounted) {
       final message = !isFavorite
@@ -63,46 +107,47 @@ class RestaurantCard extends StatelessWidget {
     }
   }
 
- void _navigateToDetail(BuildContext context, bool isFavorite) {
-  String horarioCompleto = '';
-  if (restaurant.horarioApertura.isNotEmpty && 
-      restaurant.horarioCierre.isNotEmpty) {
-    horarioCompleto = '${restaurant.horarioApertura} - ${restaurant.horarioCierre}';
-  }
+  void _navigateToDetail(BuildContext context, bool isFavorite) {
+    String horarioCompleto = '';
+    if (widget.restaurant.horarioApertura.isNotEmpty && 
+        widget.restaurant.horarioCierre.isNotEmpty) {
+      horarioCompleto = '${widget.restaurant.horarioApertura} - ${widget.restaurant.horarioCierre}';
+    }
 
-  String status = 'Cerrado';
-  if (restaurant.isOpenNow) {
-    status = 'Abierto • Cierra a las ${restaurant.horarioCierre}';
-  }
+    String status = 'Cerrado';
+    if (widget.restaurant.isOpenNow) {
+      status = 'Abierto • Cierra a las ${widget.restaurant.horarioCierre}';
+    }
 
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => RestaurantDetailPage(
-        restaurantId: restaurant.idRestaurante!,
-        nombre: restaurant.nombre,
-        tipo: restaurant.categoria,
-        calificacion: restaurant.calificacionPromedio ?? 0.0,
-        reviews: restaurant.numeroReviews ?? 0,
-        ubicacion: restaurant.direccion,
-        foto: restaurant.menuUrl.isNotEmpty
-            ? restaurant.menuUrl
-            : 'assets/images/restaurant_placeholder.jpg',
-        isOpen: restaurant.isOpenNow,
-        status: status,
-        description: restaurant.descripcion,
-        phone: restaurant.telefono,
-        horario: horarioCompleto,
-        precioPromedio: restaurant.precioPromedio,
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RestaurantDetailPage(
+          restaurantId: widget.restaurant.idRestaurante!,
+          nombre: widget.restaurant.nombre,
+          tipo: widget.restaurant.categoria,
+          calificacion: widget.restaurant.calificacionPromedio ?? 0.0,
+          reviews: widget.restaurant.numeroReviews ?? 0,
+          ubicacion: widget.restaurant.direccion,
+          foto: widget.restaurant.menuUrl.isNotEmpty
+              ? widget.restaurant.menuUrl
+              : 'assets/images/restaurant_placeholder.jpg',
+          isOpen: widget.restaurant.isOpenNow,
+          status: status,
+          description: widget.restaurant.descripcion,
+          phone: widget.restaurant.telefono,
+          horario: horarioCompleto,
+          precioPromedio: widget.restaurant.precioPromedio,
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<FavoriteProvider>(
       builder: (context, favoriteProvider, child) {
-        final restaurantId = restaurant.idRestaurante;
+        final restaurantId = widget.restaurant.idRestaurante;
         final isFavorite = restaurantId != null 
             ? favoriteProvider.isFavorite(restaurantId)
             : false;
@@ -142,8 +187,8 @@ class RestaurantCard extends StatelessWidget {
             width: double.infinity,
             color: const Color(0xFFE8E8E8),
             child: Image.asset(
-              restaurant.menuUrl.isNotEmpty
-                  ? restaurant.menuUrl
+              widget.restaurant.menuUrl.isNotEmpty
+                  ? widget.restaurant.menuUrl
                   : 'assets/images/restaurante.jpg',
               fit: BoxFit.cover,
               errorBuilder: (context, error, stackTrace) {
@@ -161,7 +206,7 @@ class RestaurantCard extends StatelessWidget {
           ),
         ),
         // Badge "Abierto ahora"
-        if (restaurant.isOpenNow)
+        if (widget.restaurant.isOpenNow)
           Positioned(
             top: 12,
             left: 12,
@@ -197,7 +242,7 @@ class RestaurantCard extends StatelessWidget {
           top: 12,
           right: 12,
           child: GestureDetector(
-            onTap: () => _handleFavoriteTap(context),
+            onTap: _isProcessing ? null : () => _handleFavoriteTap(context),
             child: Container(
               width: 48,
               height: 48,
@@ -211,11 +256,21 @@ class RestaurantCard extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Icon(
-                isFavorite ? Icons.favorite : Icons.favorite_border,
-                color: const Color(0xFFFF6B6B),
-                size: 24,
-              ),
+              child: _isProcessing
+                  ? Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          const Color(0xFFFF6B6B),
+                        ),
+                      ),
+                    )
+                  : Icon(
+                      isFavorite ? Icons.favorite : Icons.favorite_border,
+                      color: const Color(0xFFFF6B6B),
+                      size: 24,
+                    ),
             ),
           ),
         ),
@@ -231,7 +286,7 @@ class RestaurantCard extends StatelessWidget {
         children: [
           // Nombre del restaurante
           Text(
-            restaurant.nombre,
+            widget.restaurant.nombre,
             style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -247,7 +302,7 @@ class RestaurantCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  restaurant.categoria,
+                  widget.restaurant.categoria,
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[700],
@@ -262,7 +317,7 @@ class RestaurantCard extends StatelessWidget {
           const SizedBox(height: 4),
           // Precio promedio
           Text(
-            '\$${restaurant.precioPromedio.toStringAsFixed(0)} MXN promedio',
+            '\$${widget.restaurant.precioPromedio.toStringAsFixed(0)} MXN promedio',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[700],
@@ -291,7 +346,7 @@ class RestaurantCard extends StatelessWidget {
         ),
         const SizedBox(width: 4),
         Text(
-          '${restaurant.calificacionPromedio ?? 0.0}',
+          '${widget.restaurant.calificacionPromedio ?? 0.0}',
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -300,7 +355,7 @@ class RestaurantCard extends StatelessWidget {
         ),
         const SizedBox(width: 4),
         Text(
-          '(${restaurant.numeroReviews ?? 0})',
+          '(${widget.restaurant.numeroReviews ?? 0})',
           style: TextStyle(
             fontSize: 14,
             color: Colors.grey[600],
@@ -322,7 +377,7 @@ class RestaurantCard extends StatelessWidget {
         const SizedBox(width: 6),
         Expanded(
           child: Text(
-            restaurant.direccion,
+            widget.restaurant.direccion,
             style: const TextStyle(
               fontSize: 14,
               color: Color(0xFF666666),

@@ -32,11 +32,42 @@ class _ReviewsTabState extends State<ReviewsTab> {
     await provider.loadRestaurantStats(widget.idRestaurante);
   }
 
+  // Verificar si el usuario actual ya tiene una reseña
+  bool _userHasReview() {
+    final authProvider = context.read<AuthProvider>();
+    final restaurantProvider = context.read<RestaurantProvider>();
+    
+    // Si no hay usuario logueado, retornar false
+    if (authProvider.currentUser == null) {
+      debugPrint('⚠️ No hay usuario logueado');
+      return false;
+    }
+    
+    final userId = authProvider.currentUser!.idUsuario;
+    final reviews = restaurantProvider.reviews;
+    
+    debugPrint('🔍 Verificando reseñas para usuario ID: $userId');
+    debugPrint('📋 Total de reseñas: ${reviews.length}');
+    
+    // Verificar si alguna reseña pertenece al usuario actual
+    final hasReview = reviews.any((review) {
+      final reviewUserId = review.usuario?.idUsuario;
+      debugPrint('   Reseña de usuario ID: $reviewUserId');
+      return reviewUserId == userId;
+    });
+    
+    debugPrint(hasReview 
+        ? '✅ Usuario YA tiene una reseña' 
+        : '❌ Usuario NO tiene reseña');
+    
+    return hasReview;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Consumer<RestaurantProvider>(
-      builder: (context, provider, child) {
-        if (provider.isLoading) {
+    return Consumer2<RestaurantProvider, AuthProvider>(
+      builder: (context, restaurantProvider, authProvider, child) {
+        if (restaurantProvider.isLoading) {
           return const Center(
             child: CircularProgressIndicator(
               color: Color(0xFFFF6B6B),
@@ -44,9 +75,11 @@ class _ReviewsTabState extends State<ReviewsTab> {
           );
         }
 
-        final reviews = provider.reviews;
-        final averageRating = provider.averageRating;
-        final totalReviews = provider.totalReviews;
+        final reviews = restaurantProvider.reviews;
+        final averageRating = restaurantProvider.averageRating;
+        final totalReviews = restaurantProvider.totalReviews;
+        final hasReview = _userHasReview();
+        final isLoggedIn = authProvider.currentUser != null;
 
         return RefreshIndicator(
           onRefresh: _loadReviews,
@@ -66,11 +99,14 @@ class _ReviewsTabState extends State<ReviewsTab> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Comparte tu opinión con otros comensales',
+                Text(
+                  hasReview 
+                      ? 'Ya dejaste tu opinión sobre este lugar'
+                      : 'Comparte tu opinión con otros comensales',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Color(0xFF666666),
+                    color: hasReview ? const Color(0xFF4CAF50) : const Color(0xFF666666),
+                    fontWeight: hasReview ? FontWeight.w500 : FontWeight.normal,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -78,21 +114,37 @@ class _ReviewsTabState extends State<ReviewsTab> {
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton(
-                    onPressed: () => _showReviewDialog(context),
+                    onPressed: hasReview 
+                        ? null 
+                        : () => _showReviewDialog(context, isLoggedIn),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFF6B6B),
+                      backgroundColor: hasReview 
+                          ? Colors.grey[300]
+                          : const Color(0xFFFF6B6B),
+                      disabledBackgroundColor: Colors.grey[300],
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                       elevation: 0,
                     ),
-                    child: const Text(
-                      'Escribe tu reseña',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          hasReview ? Icons.check_circle : Icons.rate_review,
+                          color: hasReview ? Colors.grey[600] : Colors.white,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          hasReview ? 'Reseña enviada' : 'Escribe tu reseña',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: hasReview ? Colors.grey[600] : Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -142,7 +194,18 @@ class _ReviewsTabState extends State<ReviewsTab> {
     );
   }
 
-  void _showReviewDialog(BuildContext context) {
+  void _showReviewDialog(BuildContext context, bool isLoggedIn) {
+    if (!isLoggedIn) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Debes iniciar sesión para dejar una reseña'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -198,7 +261,7 @@ class _ReviewsTabState extends State<ReviewsTab> {
             3;
 
         return ReviewItem(
-          name: review.usuario?.nombre ?? 'Usuario Anónimo',
+          name: review.usuario?.nombreCompleto ?? 'Usuario Anónimo',
           date: _formatDate(review.fechaCalificacion),
           comment: review.comentario ?? 'Sin comentarios',
           rating: avgRating,

@@ -3,11 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:rating_app/core/providers/auth_provider.dart';
 import 'package:rating_app/core/providers/restaurant_provider.dart';
 import 'package:rating_app/screens/login_screen.dart';
-import 'package:rating_app/screens/restaurant_manage_screen.dart';
-import 'package:rating_app/screens/restaurant_screen.dart';
-import 'package:rating_app/widgets/NavigationScaffold.dart';
-import 'package:rating_app/screens/auth_wrapper.dart';
-import 'package:rating_app/widgets/custom_rate.dart';
+import 'package:rating_app/widgets/common/app_bar_custom.dart';
 import 'package:rating_app/widgets/cutoms_reviews.dart';
 
 class RestaurantReviews extends StatefulWidget {
@@ -21,7 +17,6 @@ class _RestaurantReviewsState extends State<RestaurantReviews> {
   @override
   void initState() {
     super.initState();
-    // Cargar datos del restaurante al inicializar
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final restaurantProvider = Provider.of<RestaurantProvider>(
@@ -35,7 +30,7 @@ class _RestaurantReviewsState extends State<RestaurantReviews> {
     });
   }
 
-  /// 🔥 Función para calcular ratios de estrellas
+  /// Función para calcular ratios de estrellas
   Map<String, double> calculateStarRatios(List<dynamic> reviews) {
     if (reviews.isEmpty) {
       return {
@@ -55,7 +50,6 @@ class _RestaurantReviewsState extends State<RestaurantReviews> {
     int oneStar = 0;
 
     for (var r in reviews) {
-      // Calcular el promedio de las tres puntuaciones
       final comida = (r["puntuacionComida"] ?? 0).toDouble();
       final servicio = (r["puntuacionServicio"] ?? 0).toDouble();
       final ambiente = (r["puntuacionAmbiente"] ?? 0).toDouble();
@@ -83,6 +77,44 @@ class _RestaurantReviewsState extends State<RestaurantReviews> {
     };
   }
 
+  /// Obtener iniciales del nombre
+  String _getInitials(String nombre) {
+    if (nombre.isEmpty) return 'A';
+    
+    List<String> partes = nombre.trim().split(' ');
+    
+    if (partes.length >= 2 && partes[0].isNotEmpty && partes[1].isNotEmpty) {
+      return '${partes[0][0]}${partes[1][0]}'.toUpperCase();
+    }
+    
+    if (partes[0].length >= 2) {
+      return partes[0].substring(0, 2).toUpperCase();
+    } else if (partes[0].length == 1) {
+      return partes[0][0].toUpperCase();
+    }
+    
+    return 'A';
+  }
+
+  /// Calcular hace cuánto tiempo fue la reseña
+  String _getTimeAgo(DateTime? fecha) {
+    if (fecha == null) return 'Hace tiempo';
+    
+    final now = DateTime.now();
+    final difference = now.difference(fecha);
+    
+    if (difference.inDays > 30) {
+      final months = (difference.inDays / 30).floor();
+      return 'hace $months ${months == 1 ? 'mes' : 'meses'}';
+    } else if (difference.inDays > 0) {
+      return 'hace ${difference.inDays} ${difference.inDays == 1 ? 'día' : 'días'}';
+    } else if (difference.inHours > 0) {
+      return 'hace ${difference.inHours} ${difference.inHours == 1 ? 'hora' : 'horas'}';
+    } else {
+      return 'hace unos momentos';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer2<AuthProvider, RestaurantProvider>(
@@ -91,55 +123,11 @@ class _RestaurantReviewsState extends State<RestaurantReviews> {
           return const LoginScreen();
         }
 
-        return Navigationscaffold(
-          currentIndex: 1,
-          onTap: (index) {
-            switch (index) {
-              case 0:
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const RestaurantScreen(),
-                  ),
-                );
-                break;
-              case 1:
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const RestaurantReviews(),
-                  ),
-                );
-                break;
-              case 2:
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const Restaurant_manage_Screen(),
-                  ),
-                );
-                break;
-            }
-          },
-          appBar: AppBar(
-            title: const Text("FoodFinder"),
-            backgroundColor: Colors.redAccent,
-            foregroundColor: Colors.white,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.logout),
-                onPressed: () async {
-                  await authProvider.logout();
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AuthWrapper()),
-                    (route) => false,
-                  );
-                },
-              ),
-            ],
+        return Scaffold(
+          appBar: AppBarCustom(
+            title: 'Reseñas'
           ),
-          child: restaurantProvider.isLoading
+          body: restaurantProvider.isLoading
               ? const Center(
                   child: CircularProgressIndicator(color: Colors.redAccent),
                 )
@@ -160,173 +148,95 @@ class _RestaurantReviewsState extends State<RestaurantReviews> {
                       },
                       child: SingleChildScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             // Tarjeta de resumen de calificación
-                            Card(
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: CustomReviews(
-                                  rating: restaurantProvider.averageRating,
-                                  totalReviews: restaurantProvider.totalReviews,
-                                  fiveStarRatio: restaurantProvider.reviews.isEmpty
-                                      ? 0.0
-                                      : calculateStarRatios(
-                                          restaurantProvider.reviews
-                                              .map((r) => {
-                                                    "puntuacionComida": r.puntuacionComida,
-                                                    "puntuacionServicio": r.puntuacionServicio,
-                                                    "puntuacionAmbiente": r.puntuacionAmbiente,
-                                                  })
-                                              .toList(),
-                                        )["five"]!,
-                                  fourStarRatio: restaurantProvider.reviews.isEmpty
-                                      ? 0.0
-                                      : calculateStarRatios(
-                                          restaurantProvider.reviews
-                                              .map((r) => {
-                                                    "puntuacionComida": r.puntuacionComida,
-                                                    "puntuacionServicio": r.puntuacionServicio,
-                                                    "puntuacionAmbiente": r.puntuacionAmbiente,
-                                                  })
-                                              .toList(),
-                                        )["four"]!,
-                                  threeStarRatio: restaurantProvider.reviews.isEmpty
-                                      ? 0.0
-                                      : calculateStarRatios(
-                                          restaurantProvider.reviews
-                                              .map((r) => {
-                                                    "puntuacionComida": r.puntuacionComida,
-                                                    "puntuacionServicio": r.puntuacionServicio,
-                                                    "puntuacionAmbiente": r.puntuacionAmbiente,
-                                                  })
-                                              .toList(),
-                                        )["three"]!,
-                                ),
-                              ),
+                            CustomReviews(
+                              rating: restaurantProvider.averageRating,
+                              totalReviews: restaurantProvider.totalReviews,
+                              fiveStarRatio: restaurantProvider.reviews.isEmpty
+                                  ? 0.0
+                                  : calculateStarRatios(
+                                      restaurantProvider.reviews
+                                          .map((r) => {
+                                                "puntuacionComida": r.puntuacionComida,
+                                                "puntuacionServicio": r.puntuacionServicio,
+                                                "puntuacionAmbiente": r.puntuacionAmbiente,
+                                              })
+                                          .toList(),
+                                    )["five"]!,
+                              fourStarRatio: restaurantProvider.reviews.isEmpty
+                                  ? 0.0
+                                  : calculateStarRatios(
+                                      restaurantProvider.reviews
+                                          .map((r) => {
+                                                "puntuacionComida": r.puntuacionComida,
+                                                "puntuacionServicio": r.puntuacionServicio,
+                                                "puntuacionAmbiente": r.puntuacionAmbiente,
+                                              })
+                                          .toList(),
+                                    )["four"]!,
+                              threeStarRatio: restaurantProvider.reviews.isEmpty
+                                  ? 0.0
+                                  : calculateStarRatios(
+                                      restaurantProvider.reviews
+                                          .map((r) => {
+                                                "puntuacionComida": r.puntuacionComida,
+                                                "puntuacionServicio": r.puntuacionServicio,
+                                                "puntuacionAmbiente": r.puntuacionAmbiente,
+                                              })
+                                          .toList(),
+                                    )["three"]!,
                             ),
-                            const SizedBox(height: 12),
+                            
+                            const SizedBox(height: 24),
 
-                            // Tarjeta de comentarios
+                            // Comentarios
                             if (restaurantProvider.reviews.isEmpty)
-                              const Card(
-                                elevation: 0,
-                                child: Padding(
-                                  padding: EdgeInsets.all(24),
-                                  child: Center(
-                                    child: Text(
-                                      "Aún no hay reseñas para tu restaurante",
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        color: Colors.grey,
-                                      ),
+                              Container(
+                                padding: const EdgeInsets.all(32),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.05),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: const Center(
+                                  child: Text(
+                                    "Aún no hay reseñas para tu restaurante",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Color(0xFF999999),
                                     ),
                                   ),
                                 ),
                               )
                             else
-                              Card(
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        "Comentarios",
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 12),
-                                      ListView.builder(
-                                        itemCount: restaurantProvider.reviews.length,
-                                        shrinkWrap: true,
-                                        physics: const NeverScrollableScrollPhysics(),
-                                        itemBuilder: (context, index) {
-                                          final review = restaurantProvider.reviews[index];
-                                          final usuario = review.usuario?.nombre ?? "Anónimo";
-                                          final comentario = review.comentario ?? "Sin comentario";
-                                          final promedioCalificacion = (
-                                            (review.puntuacionComida ?? 0) +
-                                            (review.puntuacionServicio ?? 0) +
-                                            (review.puntuacionAmbiente ?? 0)
-                                          ) / 3;
+                              Column(
+                                children: restaurantProvider.reviews.map((review) {
+                                  final usuario = "${review.usuario?.nombre ?? ""} ${review.usuario?.apellido ?? ""}".trim();
+                                  final comentario = review.comentario ?? "Sin comentario";
+                                  final promedioCalificacion = (
+                                    (review.puntuacionComida ?? 0) +
+                                    (review.puntuacionServicio ?? 0) +
+                                    (review.puntuacionAmbiente ?? 0)
+                                  ) / 3;
 
-                                          return Card(
-                                            elevation: 2,
-                                            margin: const EdgeInsets.only(bottom: 8),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(8),
-                                            ),
-                                            child: Padding(
-                                              padding: const EdgeInsets.all(12),
-                                              child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
-                                                children: [
-                                                  Row(
-                                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                    children: [
-                                                      Text(
-                                                        usuario,
-                                                        style: const TextStyle(
-                                                          fontSize: 16,
-                                                          fontWeight: FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                      Row(
-                                                        children: [
-                                                          const Icon(
-                                                            Icons.star,
-                                                            color: Colors.amber,
-                                                            size: 18,
-                                                          ),
-                                                          const SizedBox(width: 4),
-                                                          Text(
-                                                            promedioCalificacion.toStringAsFixed(1),
-                                                            style: const TextStyle(
-                                                              fontSize: 16,
-                                                              fontWeight: FontWeight.bold,
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ],
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  Text(
-                                                    comentario,
-                                                    style: const TextStyle(fontSize: 14),
-                                                  ),
-                                                  const SizedBox(height: 8),
-                                                  Row(
-                                                    children: [
-                                                      _buildRatingChip("Comida", review.puntuacionComida ?? 0),
-                                                      const SizedBox(width: 8),
-                                                      _buildRatingChip("Servicio", review.puntuacionServicio ?? 0),
-                                                      const SizedBox(width: 8),
-                                                      _buildRatingChip("Ambiente", review.puntuacionAmbiente ?? 0),
-                                                    ],
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                                  return _buildReviewCard(
+                                    usuario: usuario,
+                                    initiales: _getInitials(usuario),
+                                    timeAgo: _getTimeAgo(review.fechaCalificacion),
+                                    rating: promedioCalificacion,
+                                    comentario: comentario,
+                                  );
+                                }).toList(),
                               ),
                           ],
                         ),
@@ -337,15 +247,119 @@ class _RestaurantReviewsState extends State<RestaurantReviews> {
     );
   }
 
-  Widget _buildRatingChip(String label, int rating) {
-    return Chip(
-      label: Text(
-        "$label: $rating",
-        style: const TextStyle(fontSize: 12),
+  Widget _buildReviewCard({
+    required String usuario,
+    required String initiales,
+    required String timeAgo,
+    required double rating,
+    required String comentario,
+  }) {
+    // Número de estrellas llenas
+    int fullStars = rating.floor();
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      backgroundColor: Colors.grey[200],
-      padding: EdgeInsets.zero,
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header con avatar, nombre y tiempo
+          Row(
+            children: [
+              // Avatar circular con iniciales
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFB3BA), // Rosa pastel
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    initiales,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+              
+              const SizedBox(width: 12),
+              
+              // Nombre y tiempo
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      usuario,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1A1A1A),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      timeAgo,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF999999),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // Estrellas de rating
+          Row(
+            children: List.generate(5, (index) {
+              if (index < fullStars) {
+                return const Icon(
+                  Icons.star,
+                  color: Color(0xFFFFC107),
+                  size: 20,
+                );
+              } else {
+                return const Icon(
+                  Icons.star_border,
+                  color: Color(0xFFE0E0E0),
+                  size: 20,
+                );
+              }
+            }),
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // Comentario
+          Text(
+            comentario,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF333333),
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

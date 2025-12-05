@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'package:rating_app/screens/notifications_screen.dart';
 class AppBarCustom extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final VoidCallback? onNotificationTap;
@@ -76,12 +76,16 @@ class AppBarCustom extends StatelessWidget implements PreferredSizeWidget {
               ),
             ),
             onPressed: onNotificationTap ?? () {
-              debugPrint('Notificaciones presionadas');
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationsScreen(),
+                ),
+              );
             },
             padding: EdgeInsets.zero,
           ),
         ),
       ],
     );
-  }
-}
+  }}

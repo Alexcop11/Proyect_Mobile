@@ -17,15 +17,18 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
+Future<void> _loadData() async {
+  await _loadRestaurants();
+  await _loadFavorites(); // Cargar favoritos después de restaurantes
+}
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadRestaurants();
-      _loadFavorites();
-    });
-  }
+@override
+void initState() {
+  super.initState();
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    _loadData();
+  });
+}
 
   Future<void> _loadRestaurants() async {
     final restaurantProvider = Provider.of<RestaurantProvider>(
@@ -120,9 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
               backgroundColor: const Color(0xFFF8F8F8),
               appBar: AppBarCustom(
                 title: 'FoodFinder',
-                onNotificationTap: () {
-                  debugPrint('Notificaciones tapped');
-                },
+                
               ),
               body: RefreshIndicator(
                 onRefresh: _loadRestaurants,

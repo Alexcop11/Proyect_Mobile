@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rating_app/core/providers/auth_provider.dart';
 import 'package:rating_app/core/services/api_services.dart';
+import 'package:rating_app/widgets/common/app_bar_custom.dart';
 import 'package:rating_app/core/services/auth_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -95,11 +96,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Editar Perfil"),
-        backgroundColor: Colors.redAccent,
-        foregroundColor: Colors.white,
-      ),
+      appBar:  AppBarCustom(
+            title: 'Configuración',
+          ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: ListView(

@@ -170,22 +170,9 @@ class _EditRestaurantScreenState extends State<EditRestaurantScreen> {
       builder: (context, authProvider, restaurantProvider, child) {
         return Scaffold(
           appBar: AppBar(
-            title: const Text("FoodFinder"),
+            title: const Text("Editar Resaturante"),
             backgroundColor: Colors.redAccent,
             foregroundColor: Colors.white,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.logout),
-                onPressed: () async {
-                  await authProvider.logout();
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (_) => AuthWrapper()),
-                    (route) => false,
-                  );
-                },
-              ),
-            ],
           ),
           body: Padding(
             padding: const EdgeInsets.all(16),
