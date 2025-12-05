@@ -161,7 +161,36 @@ class AuthService {
     final token = await getStoredToken();
     return token != null && token.isNotEmpty;
   }
+  Future<Map<String, dynamic>> updateUser({
+    required int idUsuario,
+    required String email,
+    required String nombre,
+    required String apellido,
+    required String telefono,
+  }) async {
+    final payload = {
+      "idUsuario": idUsuario,
+      "email": email,
+      "nombre": nombre,
+      "apellido": apellido,
+      "telefono": telefono,
+    };
 
+    final response = await _apiServices.request(
+      method: 'PUT',
+      endpoint: 'http://192.168.110.171:8000/api/users/',
+      data: payload,
+    );
+
+    debugPrint("Actualización usuario: ${jsonEncode(response.data)}");
+
+    if (response.data['type'] == 'SUCCESS') {
+      return response.data['result'];
+    } else {
+      throw Exception(response.data['message'] ?? 'Error desconocido');
+    }
+  }
+  
   Future<String?> getStoredEmail() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(StorageKeys.email);

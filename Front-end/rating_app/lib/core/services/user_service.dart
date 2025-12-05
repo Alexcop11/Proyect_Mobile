@@ -109,8 +109,9 @@ class UserService {
     try {
       final response = await _apiServices.request(
         method: 'PATCH',
-        endpoint: 'http://192.168.1.72:8000/api/users/$idUsuario/change-password',
+        endpoint: 'http://192.168.1.72:8000/api/users/change-password',
         data: {
+          'id': idUsuario,
           'password': newPassword,
         },
       );

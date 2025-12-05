@@ -428,4 +428,157 @@ class RestaurantProvider with ChangeNotifier {
     _currentRestaurant = null;
     notifyListeners();
   }
-}
+  
+  /// Cargar estadísticas del restaurante (versión pública)
+  /// Este método se puede llamar desde widgets externos
+  Future<void> loadRestaurantStats(int idRestaurante) async {
+    await _loadRestaurantStats(idRestaurante);
+  }
+
+  /// Crear una nueva reseña
+  Future<bool> createReview({
+    required int idUsuario,
+    required int idRestaurante,
+    required int puntuacionComida,
+    required int puntuacionServicio,
+    required int puntuacionAmbiente,
+    String? comentario,
+  }) async {
+    try {
+      debugPrint('📝 Creando nueva reseña...');
+      
+      final review = await _restaurantService.createReview(
+        idUsuario: idUsuario,
+        idRestaurante: idRestaurante,
+        puntuacionComida: puntuacionComida,
+        puntuacionServicio: puntuacionServicio,
+        puntuacionAmbiente: puntuacionAmbiente,
+        comentario: comentario,
+      );
+
+      if (review != null) {
+        debugPrint('✅ Reseña creada exitosamente');
+        
+        // Recargar las estadísticas del restaurante
+        await _loadRestaurantStats(idRestaurante);
+        
+        return true;
+      }
+      
+      return false;
+    } catch (e) {
+      debugPrint('❌ Error al crear reseña: $e');
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Actualizar una reseña existente
+  Future<bool> updateReview({
+    required Review review,
+    required int idRestaurante,
+  }) async {
+    try {
+      debugPrint('🔄 Actualizando reseña...');
+      
+      final updatedReview = await _restaurantService.updateReview(review);
+
+      if (updatedReview != null) {
+        debugPrint('✅ Reseña actualizada');
+        
+        // Actualizar en la lista local
+        final index = _reviews.indexWhere(
+          (r) => r.idCalificacion == updatedReview.idCalificacion
+        );
+        if (index != -1) {
+          _reviews[index] = updatedReview;
+        }
+        
+        // Recalcular estadísticas
+        await _loadRestaurantStats(idRestaurante);
+        
+        return true;
+      }
+      
+      return false;
+    } catch (e) {
+      debugPrint('❌ Error al actualizar reseña: $e');
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Eliminar una reseña
+  Future<bool> deleteReview({
+    required int idCalificacion,
+    required int idRestaurante,
+  }) async {
+    try {
+      debugPrint('🗑️ Eliminando reseña...');
+      
+      final success = await _restaurantService.deleteReview(idCalificacion);
+
+      if (success) {
+        debugPrint('✅ Reseña eliminada');
+        
+        // Remover de la lista local
+        _reviews.removeWhere((r) => r.idCalificacion == idCalificacion);
+        
+        // Recalcular estadísticas
+        await _loadRestaurantStats(idRestaurante);
+        
+        return true;
+      }
+      
+      return false;
+    } catch (e) {
+      debugPrint('❌ Error al eliminar reseña: $e');
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Obtener reseñas de un restaurante específico
+  Future<List<Review>> getRestaurantReviews(int idRestaurante) async {
+    try {
+      debugPrint('📋 Obteniendo reseñas del restaurante $idRestaurante');
+      
+      final reviews = await _restaurantService.getReviews(idRestaurante);
+      
+      debugPrint('✅ ${reviews.length} reseñas obtenidas');
+      return reviews;
+    } catch (e) {
+      debugPrint('❌ Error al obtener reseñas: $e');
+      return [];
+    }
+  }
+
+  /// Verificar si un usuario ya ha dejado reseña en un restaurante
+  Future<Review?> getUserReviewForRestaurant({
+    required int idUsuario,
+    required int idRestaurante,
+  }) async {
+    try {
+      final reviews = await _restaurantService.getReviews(idRestaurante);
+      
+      // Buscar si el usuario ya tiene una reseña
+      final userReview = reviews.firstWhere(
+        (review) => review.usuario?.idUsuario == idUsuario,
+        orElse: () => Review(),
+      );
+      
+      // Si encontró una reseña válida (con ID), devolverla
+      if (userReview.idCalificacion != null) {
+        return userReview;
+      }
+      
+      return null;
+    } catch (e) {
+      debugPrint('❌ Error verificando reseña del usuario: $e');
+      return null;
+    }
+  }
+  }

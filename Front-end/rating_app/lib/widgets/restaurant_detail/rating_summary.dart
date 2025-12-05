@@ -22,30 +22,34 @@ class RatingSummary extends StatelessWidget {
       child: Row(
         children: [
           Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(
-                '$calificacion',
+                calificacion.toStringAsFixed(1),
                 style: const TextStyle(
                   fontSize: 48,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF1A1A1A),
                 ),
               ),
+              const SizedBox(height: 4),
               Row(
                 children: List.generate(
                   5,
                   (index) => Icon(
                     index < calificacion.floor()
                         ? Icons.star
-                        : Icons.star_border,
+                        : (index < calificacion && calificacion % 1 >= 0.5)
+                            ? Icons.star_half
+                            : Icons.star_border,
                     color: const Color(0xFFFFC107),
                     size: 20,
                   ),
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 8),
               Text(
-                'Basado en $reviews reseñas',
+                'Basado en ${reviews == 0 ? 'ninguna' : reviews} ${reviews == 1 ? 'reseña' : 'reseñas'}',
                 style: TextStyle(
                   fontSize: 12,
                   color: Colors.grey[600],

@@ -9,6 +9,7 @@ import 'package:rating_app/widgets/restaurant_detail/restaurant_info_card.dart';
 import 'package:rating_app/widgets/restaurant_detail/information_tab.dart';
 import 'package:rating_app/widgets/restaurant_detail/menu_tab.dart';
 import 'package:rating_app/widgets/restaurant_detail/reviews_tab.dart';
+
 class RestaurantDetailPage extends StatefulWidget {
   final int restaurantId;
   final String nombre;
@@ -155,9 +156,9 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage>
                   phone: widget.phone,
                 ),
                 const MenuTab(),
+                // ✅ CORRECCIÓN: Pasar idRestaurante al ReviewsTab
                 ReviewsTab(
-                  calificacion: widget.calificacion,
-                  reviews: widget.reviews,
+                  idRestaurante: widget.restaurantId,
                 ),
               ],
             ),

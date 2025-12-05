@@ -1,14 +1,22 @@
 import 'package:flutter/material.dart';
 
 class DetailedRatings extends StatelessWidget {
-  const DetailedRatings({Key? key}) : super(key: key);
+  final List reviews;
+
+  const DetailedRatings({
+    Key? key,
+    required this.reviews,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    // Calcular promedios de cada categoría
+    final ratings = _calculateAverageRatings();
+
     final categories = [
-      {'name': 'Comida', 'rating': 3.8},
-      {'name': 'Servicio', 'rating': 4.0},
-      {'name': 'Ambiente', 'rating': 4.0},
+      {'name': 'Comida', 'rating': ratings['comida']!},
+      {'name': 'Servicio', 'rating': ratings['servicio']!},
+      {'name': 'Ambiente', 'rating': ratings['ambiente']!},
     ];
 
     return Column(
@@ -42,7 +50,7 @@ class DetailedRatings extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Text(
-                '${category['rating']}',
+                '${(category['rating'] as double).toStringAsFixed(1)}',
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -54,5 +62,31 @@ class DetailedRatings extends StatelessWidget {
         );
       }).toList(),
     );
+  }
+
+  Map<String, double> _calculateAverageRatings() {
+    if (reviews.isEmpty) {
+      return {
+        'comida': 0.0,
+        'servicio': 0.0,
+        'ambiente': 0.0,
+      };
+    }
+
+    double totalComida = 0;
+    double totalServicio = 0;
+    double totalAmbiente = 0;
+
+    for (var review in reviews) {
+      totalComida += (review.puntuacionComida ?? 0).toDouble();
+      totalServicio += (review.puntuacionServicio ?? 0).toDouble();
+      totalAmbiente += (review.puntuacionAmbiente ?? 0).toDouble();
+    }
+
+    return {
+      'comida': totalComida / reviews.length,
+      'servicio': totalServicio / reviews.length,
+      'ambiente': totalAmbiente / reviews.length,
+    };
   }
 }

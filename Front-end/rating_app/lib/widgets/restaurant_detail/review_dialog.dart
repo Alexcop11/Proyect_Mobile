@@ -1,7 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:rating_app/core/providers/restaurant_provider.dart';
+import 'package:rating_app/core/providers/auth_provider.dart';
 
 class ReviewDialog extends StatefulWidget {
-  const ReviewDialog({Key? key}) : super(key: key);
+  final int idRestaurante;
+  final VoidCallback onReviewSubmitted;
+
+  const ReviewDialog({
+    Key? key,
+    required this.idRestaurante,
+    required this.onReviewSubmitted,
+  }) : super(key: key);
 
   @override
   State<ReviewDialog> createState() => _ReviewDialogState();
@@ -12,6 +22,7 @@ class _ReviewDialogState extends State<ReviewDialog> {
   int serviceRating = 0;
   int ambianceRating = 0;
   final TextEditingController _commentController = TextEditingController();
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -31,13 +42,24 @@ class _ReviewDialogState extends State<ReviewDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              '¿Qué te pareció?',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1A1A1A),
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  '¿Qué te pareció?',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             _buildRatingSection('Comida', foodRating, (rating) {
@@ -65,10 +87,14 @@ class _ReviewDialogState extends State<ReviewDialog> {
               controller: _commentController,
               maxLines: 4,
               decoration: InputDecoration(
-                hintText: 'Ej: el ambiente...',
+                hintText: 'Ej: La comida estaba deliciosa y el servicio fue excelente...',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide(color: Colors.grey[300]!),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFFF6B6B)),
                 ),
               ),
             ),
@@ -77,30 +103,32 @@ class _ReviewDialogState extends State<ReviewDialog> {
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Reseña publicada exitosamente'),
-                      backgroundColor: Color(0xFF4CAF50),
-                    ),
-                  );
-                },
+                onPressed: _isSubmitting ? null : _submitReview,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFF6B6B),
+                  disabledBackgroundColor: Colors.grey[300],
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                   elevation: 0,
                 ),
-                child: const Text(
-                  'Publicar Reseña',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
+                child: _isSubmitting
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text(
+                        'Publicar Reseña',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
             ),
           ],
@@ -139,5 +167,76 @@ class _ReviewDialogState extends State<ReviewDialog> {
         ),
       ],
     );
+  }
+
+  Future<void> _submitReview() async {
+    // Validar que todas las calificaciones estén completas
+    if (foodRating == 0 || serviceRating == 0 || ambianceRating == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Por favor califica todos los aspectos'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      final authProvider = context.read<AuthProvider>();
+      final restaurantProvider = context.read<RestaurantProvider>();
+
+      // Verificar que el usuario esté autenticado
+      // Ajusta 'currentUser' según el nombre correcto en tu AuthProvider
+      // Puede ser: user, currentUser, authenticatedUser, loggedUser, etc.
+      final currentUser = authProvider.currentUser; // O authProvider.user si ese es el nombre
+      
+      if (currentUser == null) {
+        throw Exception('Debes iniciar sesión para dejar una reseña');
+      }
+
+      final idUsuario = currentUser.idUsuario!;
+
+      // Crear la reseña con el idRestaurante
+      final success = await restaurantProvider.createReview(
+        idUsuario: idUsuario,
+        idRestaurante: widget.idRestaurante,
+        puntuacionComida: foodRating,
+        puntuacionServicio: serviceRating,
+        puntuacionAmbiente: ambianceRating,
+        comentario: _commentController.text.trim().isEmpty
+            ? null
+            : _commentController.text.trim(),
+      );
+
+      if (!mounted) return;
+
+      if (success) {
+        Navigator.pop(context);
+        widget.onReviewSubmitted();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('¡Reseña publicada exitosamente!'),
+            backgroundColor: Color(0xFF4CAF50),
+          ),
+        );
+      } else {
+        throw Exception('No se pudo publicar la reseña');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString().replaceFirst('Exception: ', '')}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
   }
 }
