@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:rating_app/core/services/auth_service.dart';
 import 'package:rating_app/core/services/user_service.dart';
 import 'package:rating_app/models/user.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService;
@@ -44,7 +46,19 @@ class AuthProvider with ChangeNotifier {
         _token = await _authService.getStoredToken();
         _email = await _authService.getStoredEmail();
 
-        if (_email != null) {
+        // Intentar cargar usuario desde cache local primero
+        final cachedUser = await _loadUserFromCache();
+        
+        if (cachedUser != null) {
+          debugPrint('✅ Usuario cargado desde cache');
+          _currentUser = cachedUser;
+          _nombre = cachedUser.nombre;
+          _apellido = cachedUser.apellido;
+          _id = cachedUser.idUsuario.toString();
+          
+          // Cargar en segundo plano para actualizar datos
+          loadCurrentUser();
+        } else if (_email != null) {
           await loadCurrentUser();
         }
       } else {
@@ -54,7 +68,8 @@ class AuthProvider with ChangeNotifier {
         _email = null;
         _id = null;
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('❌ Error en _initializeAuth: $e');
       _isAuthenticated = false;
       _role = null;
       _token = null;
@@ -63,6 +78,75 @@ class AuthProvider with ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  /// Guardar usuario en cache local
+  Future<void> _saveUserToCache(User user) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userJson = jsonEncode({
+        'idUsuario': user.idUsuario,
+        'nombre': user.nombre,
+        'apellido': user.apellido,
+        'email': user.email,
+        'telefono': user.telefono,
+        'tipoUsuario': user.tipoUsuario.toString(),
+        'activo': user.activo,
+        'fechaRegistro': user.fechaRegistro?.toIso8601String(),
+      });
+      
+      await prefs.setString('cached_user', userJson);
+      debugPrint('💾 Usuario guardado en cache local');
+    } catch (e) {
+      debugPrint('❌ Error guardando usuario en cache: $e');
+    }
+  }
+
+  /// Cargar usuario desde cache local
+  Future<User?> _loadUserFromCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userJson = prefs.getString('cached_user');
+      
+      if (userJson != null && userJson.isNotEmpty) {
+        final Map<String, dynamic> userData = jsonDecode(userJson);
+        
+        return User(
+          idUsuario: userData['idUsuario'] as int?,
+          nombre: userData['nombre'] as String? ?? 'Usuario',
+          apellido: userData['apellido'] as String? ?? '',
+          email: userData['email'] as String? ?? '',
+          telefono: userData['telefono'] as String?,
+          tipoUsuario: _parseTipoUsuario(userData['tipoUsuario'] as String? ?? 'NORMAL'),
+          activo: (userData['activo'] as bool?) ?? true,
+          fechaRegistro: userData['fechaRegistro'] != null 
+            ? DateTime.tryParse(userData['fechaRegistro'] as String) 
+            : null,
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Error cargando usuario desde cache: $e');
+    }
+    return null;
+  }
+
+  /// Limpiar cache de usuario
+  Future<void> _clearUserCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('cached_user');
+      debugPrint('🗑️ Cache de usuario limpiado');
+    } catch (e) {
+      debugPrint('❌ Error limpiando cache: $e');
+    }
+  }
+
+  TipoUsuario _parseTipoUsuario(String tipo) {
+    if (tipo.contains('RESTAURANTE')) {
+      return TipoUsuario.RESTAURANTE;
+    } else {
+      return TipoUsuario.NORMAL;
     }
   }
 
@@ -80,13 +164,21 @@ class AuthProvider with ChangeNotifier {
           debugPrint('✅ Usuario cargado: ${_currentUser!.nombre}');
           _nombre = _currentUser!.nombre;
           _apellido = _currentUser!.apellido;
+          _id = _currentUser!.idUsuario.toString();
+          
+          // Guardar en cache
+          await _saveUserToCache(_currentUser!);
+          
+          notifyListeners();
         } else {
           debugPrint('⚠️ No se pudo obtener el usuario');
           _errorMessage = 'No se pudo cargar la información del usuario';
+          notifyListeners();
         }
       } else {
         debugPrint('⚠️ No hay email guardado');
         _errorMessage = 'No hay sesión activa';
+        notifyListeners();
       }
     } on Exception catch (e) {
       debugPrint('❌ Error cargando usuario: $e');
@@ -101,13 +193,14 @@ class AuthProvider with ChangeNotifier {
           tipoUsuario: TipoUsuario.NORMAL,
           activo: true,
         );
+        notifyListeners();
       }
     }
-    notifyListeners();
   }
 
   Future<bool> login(String email, String password) async {
     _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
 
     try {
@@ -117,23 +210,45 @@ class AuthProvider with ChangeNotifier {
       _role = result['role'];
       _email = result['email'];
 
+      // ✅ CORREGIDO: Obtener datos del usuario directamente del servidor
+      debugPrint('🔄 Obteniendo datos completos del usuario...');
       final userData = await _authService.getUser(_email!);
-      _nombre = userData['nombre'];
-      _apellido = userData['apellido'];
-      _id = userData['idUsuario'];
+      
+      _nombre = userData['nombre'] as String?;
+      _apellido = userData['apellido'] as String?;
+      _id = userData['idUsuario']?.toString();
 
-      await loadCurrentUser();
+      // Crear objeto User completo con manejo seguro de nulls
+      _currentUser = User(
+        idUsuario: userData['idUsuario'] as int?,
+        nombre: userData['nombre'] as String? ?? 'Usuario',
+        apellido: userData['apellido'] as String? ?? '',
+        email: userData['email'] as String? ?? _email!,
+        telefono: userData['telefono'] as String?,
+        tipoUsuario: _parseTipoUsuario(userData['tipoUsuario'] as String? ?? 'NORMAL'),
+        activo: (userData['activo'] as bool?) ?? true,
+        fechaRegistro: userData['fechaRegistro'] != null 
+          ? DateTime.tryParse(userData['fechaRegistro'] as String) 
+          : null,
+      );
 
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _isAuthenticated = false;
-      _errorMessage = e.toString();
-      notifyListeners();
-      return false;
-    } finally {
+      debugPrint('✅ Usuario completo cargado: ${_currentUser!.nombre} ${_currentUser!.apellido}');
+      
+      // Guardar en cache
+      await _saveUserToCache(_currentUser!);
+
+      _isAuthenticated = true;
       _isLoading = false;
       notifyListeners();
+      return true;
+      
+    } catch (e) {
+      debugPrint('❌ Error en login: $e');
+      _isAuthenticated = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
     }
   }
 
@@ -146,6 +261,7 @@ class AuthProvider with ChangeNotifier {
     required String tipousuario,
   }) async {
     _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
 
     try {
@@ -163,25 +279,32 @@ class AuthProvider with ChangeNotifier {
       final role = result['role'];
 
       if (token != null && role != null) {
+        _token = token;
+        _role = role;
+        _email = email;
         _isAuthenticated = true;
         _errorMessage = null;
+        
+        // Cargar datos completos del usuario
         await loadCurrentUser();
+        
+        _isLoading = false;
         notifyListeners();
         return true;
       } else {
         _isAuthenticated = false;
         _errorMessage = "No se recibió token o rol válido";
+        _isLoading = false;
         notifyListeners();
         return false;
       }
     } catch (e) {
+      debugPrint('❌ Error en registro: $e');
       _isAuthenticated = false;
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      notifyListeners();
-      return false;
-    } finally {
       _isLoading = false;
       notifyListeners();
+      return false;
     }
   }
 
@@ -213,8 +336,11 @@ class AuthProvider with ChangeNotifier {
         _currentUser = updatedUser;
         _nombre = updatedUser.nombre;
         _apellido = updatedUser.apellido;
+        
+        // Actualizar cache
+        await _saveUserToCache(updatedUser);
+        
         debugPrint('✅ Perfil actualizado correctamente');
-          
         notifyListeners();
         return true;
       }
@@ -265,9 +391,11 @@ class AuthProvider with ChangeNotifier {
       final userData = await _authService.getUser(_email!);
       debugPrint("📥 Respuesta: $userData");
 
-      _nombre = userData['nombre'];
-      _apellido = userData['apellido'];
-      _role = userData['tipousuario'];
+      _nombre = userData['nombre'] as String?;
+      _apellido = userData['apellido'] as String?;
+      _role = userData['tipousuario'] as String?;
+      _id = userData['idUsuario']?.toString();
+      
       notifyListeners();
       return true;
     } catch (e) {
@@ -279,6 +407,8 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> logout() async {
     await _authService.logout();
+    await _clearUserCache();
+    
     _token = null;
     _role = null;
     _email = null;
@@ -286,6 +416,8 @@ class AuthProvider with ChangeNotifier {
     _apellido = null;
     _currentUser = null;
     _id = null;
+    _isAuthenticated = false;
+    
     notifyListeners();
   }
 

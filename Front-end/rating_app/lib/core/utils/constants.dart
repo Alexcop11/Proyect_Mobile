@@ -9,7 +9,7 @@ class Api_Constants {
   static const String restaurantOwnerPoint = 'http://192.168.1.72:8000/api/restaurants/owner/';
   static const String favoritePoint = 'http://192.168.1.72:8000/api/favorites/';
   static const String ratingsPoint = 'http://192.168.1.72:8000/api/ratings/';
-
+  static const String photosPoint = '/photos/';
   static const Duration timeout = Duration(seconds: 10);
 }
 

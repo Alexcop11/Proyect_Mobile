@@ -11,6 +11,7 @@ import 'package:rating_app/widgets/client/edit_profile_form.dart';
 import 'package:rating_app/widgets/client/edit_security_form.dart';
 import 'package:rating_app/screens/auth_wrapper.dart';
 import 'package:rating_app/widgets/common/app_bar_custom.dart';
+import 'package:rating_app/widgets/restaurant_photo_section.dart';
 
 class Restaurant_manage_Screen extends StatefulWidget {
   const Restaurant_manage_Screen({super.key});
@@ -297,6 +298,12 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
                     _buildUserInfoSection(authProvider),
 
                     const SizedBox(height: 16),
+                      // NUEVO: Sección de Foto del Restaurante
+                  RestaurantPhotoSection(
+                    idRestaurante: restaurant?.idRestaurante ?? 0,
+                    currentPhotoUrl: restaurantProvider.ownerRestaurant?.menuUrl ?? 'assets/images/restaurante.jpg',
+                  ),
+
 
                     // Card de Información del Restaurante
                     _buildRestaurantInfoSection(restaurant, restaurantData, authProvider),

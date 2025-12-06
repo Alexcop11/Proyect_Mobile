@@ -3,10 +3,11 @@ import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:rating_app/core/providers/restaurant_provider.dart';
 import 'package:rating_app/core/providers/auth_provider.dart';
+import 'package:rating_app/core/providers/photo_provider.dart';
 import 'package:rating_app/screens/login_screen.dart';
-import 'package:rating_app/screens/restaurant_screen.dart';
-import 'package:rating_app/widgets/NavigationScaffold.dart';
 import 'package:rating_app/screens/auth_wrapper.dart';
+import 'package:rating_app/widgets/image_picker_component.dart';
+import 'dart:io';
 
 class RegisterRestaurant extends StatefulWidget {
   const RegisterRestaurant({super.key});
@@ -50,6 +51,9 @@ class Registerrestaurant extends State<RegisterRestaurant> {
   double? latitud;
   double? longitud;
   bool isGettingLocation = false;
+  
+  // Imagen del restaurante
+  File? imagenRestaurante;
 
   // Validaciones
   String? nombreError;
@@ -61,6 +65,7 @@ class Registerrestaurant extends State<RegisterRestaurant> {
   String? precioPromedioError;
   String? categoriaError;
   String? ubicacionError;
+  String? imagenError;
 
   @override
   void initState() {
@@ -239,6 +244,14 @@ class Registerrestaurant extends State<RegisterRestaurant> {
       } else {
         categoriaError = null;
       }
+
+      // Validación de imagen
+      if (imagenRestaurante == null) {
+        imagenError = 'Debe seleccionar una imagen del restaurante';
+        isValid = false;
+      } else {
+        imagenError = null;
+      }
     });
 
     return isValid;
@@ -270,22 +283,34 @@ class Registerrestaurant extends State<RegisterRestaurant> {
       });
     }
   }
-
   Future<void> _handleCreateRestaurant(
-    RestaurantProvider restaurantProvider,
-    AuthProvider authProvider,
-  ) async {
-    // Validar todos los campos
-    if (!_validateAll()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("❌ Por favor corrige los errores"),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+  RestaurantProvider restaurantProvider,
+  AuthProvider authProvider,
+  PhotoProvider photoProvider,
+) async {
+  // Validar todos los campos
+  if (!_validateAll()) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("❌ Por favor corrige los errores"),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
 
+  // Mostrar indicador de carga
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => const Center(
+      child: CircularProgressIndicator(),
+    ),
+  );
+
+  try {
+    // 1. Crear el restaurante
     final success = await restaurantProvider.createRestaurant(
       nombre: nombreController.text,
       descripcion: descripcionController.text,
@@ -300,42 +325,137 @@ class Registerrestaurant extends State<RegisterRestaurant> {
       menuUrl: menuUrlController.text,
       fechaRegistro: DateTime.now().toIso8601String(),
       activo: true,
-      idUsuarioPropietario: authProvider.currentUser?.idUsuario ?? 0, 
+      idUsuarioPropietario: authProvider.currentUser?.idUsuario ?? 0,
     );
 
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("✅ Restaurante creado correctamente")),
-      );
-      // Limpiar formulario
-      nombreController.clear();
-      descripcionController.clear();
-      direccionController.clear();
-      telefonoController.clear();
-      horarioAperturaController.clear();
-      horarioCierreController.clear();
-      precioPromedioController.clear();
-      menuUrlController.clear();
-      setState(() {
-        categoriaSeleccionada = null;
-        latitud = null;
-        longitud = null;
-      });
-    } else {
+    if (!success) {
+      if (!mounted) return;
+      Navigator.pop(context); // Cerrar loading
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            "Error: ${restaurantProvider.errorMessage ?? 'No se pudo crear'}",
+            "❌ Error: ${restaurantProvider.errorMessage ?? 'No se pudo crear'}",
           ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // 2. Obtener el restaurante recién creado
+    final email = authProvider.email;
+    if (email == null) {
+      if (!mounted) return;
+      Navigator.pop(context); // Cerrar loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("❌ Error: No se pudo obtener el email del usuario"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    await restaurantProvider.loadOwnerRestaurant(email);
+    
+    final restaurante = restaurantProvider.ownerRestaurant;
+    
+    if (restaurante == null || restaurante.idRestaurante == null) {
+      if (!mounted) return;
+      Navigator.pop(context); // Cerrar loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("❌ No se pudo obtener el restaurante creado"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final idRestaurante = restaurante.idRestaurante!;
+
+    // 3. Subir la foto si existe
+    bool photoSuccess = true;
+    String? photoErrorMsg;
+    
+    if (imagenRestaurante != null) {
+      photoSuccess = await photoProvider.uploadPhoto(
+        imageFile: imagenRestaurante!,
+        idRestaurante: idRestaurante,
+        descripcion: 'Foto principal del restaurante',
+        esPortada: true,
+      );
+      
+      if (!photoSuccess) {
+        photoErrorMsg = photoProvider.errorMessage;
+      }
+    }
+
+    // ✅ CORRECCIÓN: Cerrar el loading AQUÍ, después de TODO
+    if (!mounted) return;
+    Navigator.pop(context);
+
+    // 4. Mostrar resultado
+    if (imagenRestaurante != null && photoSuccess) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("✅ Restaurante y foto creados correctamente"),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else if (imagenRestaurante != null && !photoSuccess) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            "⚠️ Restaurante creado, pero error al subir foto: ${photoErrorMsg ?? 'Desconocido'}",
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("✅ Restaurante creado correctamente"),
+          backgroundColor: Colors.green,
         ),
       );
     }
+
+    // 5. Limpiar formulario
+    _clearForm();
+
+  } catch (e) {
+    if (!mounted) return;
+    Navigator.pop(context); // Cerrar loading en caso de error
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("❌ Error inesperado: $e"),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+}
+  void _clearForm() {
+    nombreController.clear();
+    descripcionController.clear();
+    direccionController.clear();
+    telefonoController.clear();
+    horarioAperturaController.clear();
+    horarioCierreController.clear();
+    precioPromedioController.clear();
+    menuUrlController.clear();
+    setState(() {
+      categoriaSeleccionada = null;
+      latitud = null;
+      longitud = null;
+      imagenRestaurante = null;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<AuthProvider, RestaurantProvider>(
-      builder: (context, authProvider, restaurantProvider, child) {
+    return Consumer3<AuthProvider, RestaurantProvider, PhotoProvider>(
+      builder: (context, authProvider, restaurantProvider, photoProvider, child) {
         if (!authProvider.isAuthenticated) return const LoginScreen();
 
         return Scaffold(
@@ -381,6 +501,18 @@ class Registerrestaurant extends State<RegisterRestaurant> {
                 TextField(
                   controller: direccionController,
                   decoration: _inputDecoration("Dirección", direccionError),
+                ),
+                const SizedBox(height: 16),
+
+                // COMPONENTE DE IMAGEN
+                ImagePickerComponent(
+                  onImageSelected: (File? image) {
+                    setState(() {
+                      imagenRestaurante = image;
+                      imagenError = null;
+                    });
+                  },
+                  errorText: imagenError,
                 ),
                 const SizedBox(height: 16),
 
@@ -481,6 +613,7 @@ class Registerrestaurant extends State<RegisterRestaurant> {
                     onPressed: () => _handleCreateRestaurant(
                       restaurantProvider,
                       authProvider,
+                      photoProvider,
                     ),
                     child: const Text(
                       "Registrar Restaurante",

@@ -51,6 +51,7 @@ class RestaurantService {
 
       final responseData = response.data;
       debugPrint("📤 Creando restaurante: $nombre");
+      
       debugPrint("📥 Respuesta: ${jsonEncode(responseData)}");
 
       if (responseData['type'] == 'SUCCESS' && responseData['result'] != null) {

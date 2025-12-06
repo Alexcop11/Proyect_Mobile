@@ -51,6 +51,7 @@ class RestaurantProvider with ChangeNotifier {
 
     try {
       debugPrint('🏪 Creando restaurante: $nombre');
+      debugPrint('🏪 Creando restaurante: $idUsuarioPropietario');
       
       final restaurant = await _restaurantService.createRestaurant(
         idUsuarioPropietario: idUsuarioPropietario,

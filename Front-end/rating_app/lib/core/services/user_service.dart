@@ -13,7 +13,7 @@ class UserService {
       
       final response = await _apiServices.request(
         method: 'GET',
-        endpoint: 'http://192.168.1.72:8000/api/users/email/$email',
+        endpoint: 'http://192.168.1.72:800/api/users/email/$email',
       );
 
       debugPrint('📥 Respuesta getUserByEmail: ${response.data}');
@@ -42,7 +42,7 @@ class UserService {
     try {
       final response = await _apiServices.request(
         method: 'GET',
-        endpoint: 'http://192.168.1.72:8000/api/users/$id',
+        endpoint: 'http://192.168.1.72:800/api/users/$id',
       );
 
       if (response.data['type'] == 'SUCCESS' && response.data['result'] != null) {
@@ -75,7 +75,7 @@ class UserService {
       
       final response = await _apiServices.request(
         method: 'PUT',
-        endpoint: 'http://192.168.1.72:8000/api/users/',
+        endpoint: 'http://192.168.1.72:800/api/users/',
         data: {
           'idUsuario': idUsuario,
           'nombre': nombre,
@@ -109,7 +109,7 @@ class UserService {
     try {
       final response = await _apiServices.request(
         method: 'PATCH',
-        endpoint: 'http://192.168.1.72:8000/api/users/change-password',
+        endpoint: 'http://192.168.1.72:800/api/users/change-password',
         data: {
           'id': idUsuario,
           'password': newPassword,

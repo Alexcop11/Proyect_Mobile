@@ -10,6 +10,8 @@ import 'package:rating_app/core/services/restaurant_service.dart';
 import 'package:rating_app/core/services/favorite_service.dart';
 import 'package:rating_app/screens/auth_wrapper.dart';
 import 'package:rating_app/core/providers/favorite_provider.dart';
+import 'package:rating_app/core/services/photo_service.dart';
+import 'package:rating_app/core/providers/photo_provider.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
@@ -28,7 +30,8 @@ class MyApp extends StatelessWidget {
     final userService = UserService(apiServices);
     final restaurantService = RestaurantService(apiServices);
     final favoriteService = FavoriteService(apiServices);
-    
+    final photoService = PhotoService(apiServices);   
+     
     return MultiProvider(
       providers: [
         // 1. Proveedor de ApiServices
@@ -68,6 +71,14 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider<FavoriteProvider>(
           create: (_) => FavoriteProvider(favoriteService),
         ),  
+        // 9. Proveedor de PhotoService
+        Provider<PhotoService>.value(
+          value: photoService,
+        ),
+        // 10. Proveedor de PhotoProvider (ChangeNotifier)
+        ChangeNotifierProvider<PhotoProvider>(
+          create: (_) => PhotoProvider(photoService),
+        ),
 
       ],
       child: MaterialApp(
