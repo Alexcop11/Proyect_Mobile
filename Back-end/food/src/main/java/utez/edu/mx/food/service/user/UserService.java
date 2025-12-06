@@ -228,4 +228,21 @@ public class UserService {
     public Optional<UserBean> findByEmailSecurity(String email) {
         return userRepository.findByEmail(email);
     }
+
+    @Transactional
+    public ResponseEntity<?> updatePushToken(UserPushTokenDTO dto) {
+        Optional<UserBean> optional = userRepository.findById(dto.getId());
+
+        if (!optional.isPresent()) {
+            return new ResponseEntity<>(new Message("Push token guardado/actualizado correctamente", TypesResponse.ERROR), HttpStatus.NOT_FOUND);
+        }
+
+        UserBean user = optional.get();
+        user.setPushToken(dto.getPushToken());
+        userRepository.save(user);
+
+        return new ResponseEntity<>(new Message("Push token guardado/actualizado correctamente", TypesResponse.SUCCESS), HttpStatus.OK);
+    }
+
+
 }

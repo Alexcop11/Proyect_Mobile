@@ -1,7 +1,12 @@
 package utez.edu.mx.food.controller.notification;
 
+import utez.edu.mx.food.model.notification.NotificationBean;
+import utez.edu.mx.food.model.user.UserBean;
+import utez.edu.mx.food.model.user.UserRepository;
 import utez.edu.mx.food.service.notification.NotificationDTO;
+import utez.edu.mx.food.service.notification.NotificationSentDTO;
 import utez.edu.mx.food.service.notification.NotificationService;
+import utez.edu.mx.food.service.user.UserService;
 import utez.edu.mx.food.utils.Message;
 import utez.edu.mx.food.utils.TypesResponse;
 import org.slf4j.Logger;
@@ -23,6 +28,9 @@ public class NotificationController {
     @Autowired
     private NotificationService notificationService;
 
+    @Autowired
+    private UserRepository userRepository;
+
     @GetMapping("/")
     public ResponseEntity<Message> getAllNotifications() {
         logger.info("Solicitando listado de todas las notificaciones");
@@ -35,11 +43,6 @@ public class NotificationController {
         return notificationService.findById(id);
     }
 
-    @PostMapping("/")
-    public ResponseEntity<Message> createNotification(@RequestBody NotificationDTO notificationDTO) {
-        logger.info("Creando nueva notificación: {}", notificationDTO.getTitulo());
-        return notificationService.save(notificationDTO);
-    }
 
     @PutMapping("/")
     public ResponseEntity<Message> updateNotification(@RequestBody NotificationDTO notificationDTO) {
@@ -101,5 +104,21 @@ public class NotificationController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
         logger.info("Solicitando notificaciones entre {} y {}", startDate, endDate);
         return notificationService.findByFechaCreacionBetween(startDate, endDate);
+    }
+
+    @PostMapping("/send")
+    public ResponseEntity<?> sendTest(@RequestBody NotificationSentDTO dto) {
+        UserBean user = userRepository.findById(dto.getUserId()).orElse(null);
+
+        if (user == null)
+            return ResponseEntity.badRequest().body("Usuario no encontrado");
+
+        NotificationBean noti = new NotificationBean();
+        noti.setUsuario(user);
+        noti.setTitulo(dto.getTitulo());
+        noti.setMensaje(dto.getMensaje());
+        noti.setTipo(NotificationBean.TipoNotificacion.SISTEMA);
+
+        return notificationService.save(noti);
     }
 }

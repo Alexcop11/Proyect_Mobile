@@ -18,6 +18,8 @@ public interface RatingRepository extends JpaRepository<RatingBean, Integer> {
 
     List<RatingBean> findByRestaurante(RestaurantBean restaurante);
 
+    List<RatingBean> findByRestaurante_IdRestaurante(Integer idRestaurante);
+
     Optional<RatingBean> findByUsuarioAndRestaurante(UserBean usuario, RestaurantBean restaurante);
 
     @Query("SELECT AVG((r.puntuacionComida + r.puntuacionServicio + r.puntuacionAmbiente) / 3.0) FROM RatingBean r WHERE r.restaurante.idRestaurante = :idRestaurante")

@@ -56,6 +56,21 @@ public class RatingService {
         return new ResponseEntity<>(new Message(rating.get(), "Calificación encontrada", TypesResponse.SUCCESS), HttpStatus.OK);
     }
 
+    @Transactional(readOnly = true)
+    public ResponseEntity<Message> findByRestaurantId(Integer idRestaurante) {
+        List<RatingBean> ratings = ratingRepository.findByRestaurante_IdRestaurante(idRestaurante);
+
+        if (ratings.isEmpty()) {
+            return new ResponseEntity<>(new Message("No hay calificaciones para este restaurante", TypesResponse.ERROR),
+                    HttpStatus.NOT_FOUND);
+        }
+
+        logger.info("Se encontraron {} calificaciones para restaurante con ID {}", ratings.size(), idRestaurante);
+        return new ResponseEntity<>(new Message(ratings, "Calificaciones encontradas", TypesResponse.SUCCESS),
+                HttpStatus.OK);
+    }
+
+
     @Transactional(rollbackFor = {SQLException.class})
     public ResponseEntity<Message> save(RatingDTO dto) {
         // Validaciones

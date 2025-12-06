@@ -31,6 +31,13 @@ public class RatingController {
         return ratingService.findById(id);
     }
 
+    @GetMapping("/restaurant/{idRestaurante}")
+    public ResponseEntity<Message> getRatingsByRestaurant(@PathVariable Integer idRestaurante) {
+        logger.info("Solicitando calificaciones para restaurante con ID: {}", idRestaurante);
+        return ratingService.findByRestaurantId(idRestaurante);
+    }
+
+
     @PostMapping("/")
     public ResponseEntity<Message> createRating(@RequestBody RatingDTO ratingDTO) {
         logger.info("Creando nueva calificación para restaurante ID: {}", ratingDTO.getIdRestaurante());

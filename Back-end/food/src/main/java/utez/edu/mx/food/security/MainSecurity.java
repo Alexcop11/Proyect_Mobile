@@ -89,15 +89,12 @@ public class MainSecurity {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(req -> req
                         .requestMatchers(WHITE_LIST).permitAll()
-                        // Rutas públicas para registro y login
-                        .requestMatchers("/api/users/").permitAll() // Permitir registro de usuarios
+                        .requestMatchers("/api/users/").permitAll()
                         .requestMatchers("/api/auth/login").permitAll()
-                        // Rutas que requieren autenticación
                         .requestMatchers("/api/restaurants/**").authenticated()
                         .requestMatchers("/api/ratings/**").authenticated()
                         .requestMatchers("/api/favorites/**").authenticated()
                         .requestMatchers("/api/notifications/**").authenticated()
-                        // Rutas administrativas
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
