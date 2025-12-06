@@ -59,7 +59,6 @@ class PhotoService {
       dio.options.headers['Authorization'] = 'Bearer $token';
       dio.options.headers['Accept'] = 'application/json';
 
-      // Corregir URL duplicada
       final url = '${Api_Constants.url}${Api_Constants.photosPoint}upload';
 
       String fileName = imageFile.path.split('/').last;
@@ -89,18 +88,18 @@ class PhotoService {
       );
 
       final responseData = response.data;
+      debugPrint('📥 Respuesta upload: ${jsonEncode(responseData)}');
 
       Map<String, dynamic>? photoData;
       
       if (responseData is Map<String, dynamic>) {
-        if (responseData.containsKey('data') && responseData['data'] != null) {
-          photoData = responseData['data'];
-        } else if (responseData.containsKey('result') && responseData['result'] != null) {
+        // Intentar obtener los datos de diferentes campos posibles
+        if (responseData.containsKey('result') && responseData['result'] != null) {
           photoData = responseData['result'];
-        } else if (responseData.containsKey('typeResponse') && 
+        } else if (responseData.containsKey('data') && responseData['data'] != null) {
+          photoData = responseData['data'];
+        } else if (responseData['type'] == 'SUCCESS' || 
                    responseData['typeResponse'] == 'SUCCESS') {
-          photoData = responseData['data'] ?? responseData;
-        } else {
           photoData = responseData;
         }
       }
@@ -138,22 +137,31 @@ class PhotoService {
 
   Future<List<Photo>> getPhotosByRestaurant(int idRestaurante) async {
     try {
+      debugPrint('📥 Obteniendo fotos del restaurante $idRestaurante...');
+      
       final response = await _apiServices.request(
         method: 'GET',
         endpoint: '${Api_Constants.photosPoint}restaurant/$idRestaurante',
       );
 
       final responseData = response.data;
+      debugPrint('📥 Respuesta getPhotos: ${jsonEncode(responseData)}');
 
       List<dynamic>? photosJson;
       
-      if (responseData['typeResponse'] == 'SUCCESS' || responseData['type'] == 'SUCCESS') {
-        photosJson = responseData['data'] ?? responseData['result'];
+      // Tu servidor usa 'result' y 'type': 'SUCCESS'
+      if (responseData['type'] == 'SUCCESS' || 
+          responseData['typeResponse'] == 'SUCCESS') {
+        photosJson = responseData['result'] ?? responseData['data'];
       }
 
       if (photosJson != null && photosJson.isNotEmpty) {
-        return photosJson.map((json) => Photo.fromJson(json)).toList();
+        final photos = photosJson.map((json) => Photo.fromJson(json)).toList();
+        debugPrint('✅ Se cargaron ${photos.length} fotos');
+        return photos;
       }
+      
+      debugPrint('ℹ️ No hay fotos para el restaurante $idRestaurante');
       return [];
     } catch (e) {
       debugPrint('❌ Error al obtener fotos: $e');
@@ -172,8 +180,9 @@ class PhotoService {
 
       Map<String, dynamic>? photoData;
       
-      if (responseData['typeResponse'] == 'SUCCESS' || responseData['type'] == 'SUCCESS') {
-        photoData = responseData['data'] ?? responseData['result'];
+      if (responseData['type'] == 'SUCCESS' || 
+          responseData['typeResponse'] == 'SUCCESS') {
+        photoData = responseData['result'] ?? responseData['data'];
       }
 
       if (photoData != null) {
@@ -189,15 +198,26 @@ class PhotoService {
 
   Future<bool> deletePhoto(int idFoto) async {
     try {
+      debugPrint('🗑️ Eliminando foto $idFoto...');
+      
       final response = await _apiServices.request(
         method: 'DELETE',
         endpoint: '${Api_Constants.photosPoint}$idFoto',
       );
 
       final responseData = response.data;
+      debugPrint('📥 Respuesta delete: ${jsonEncode(responseData)}');
 
-      return responseData['typeResponse'] == 'SUCCESS' || 
-             responseData['type'] == 'SUCCESS';
+      final success = responseData['type'] == 'SUCCESS' || 
+                     responseData['typeResponse'] == 'SUCCESS';
+      
+      if (success) {
+        debugPrint('✅ Foto eliminada correctamente');
+      } else {
+        debugPrint('⚠️ No se pudo eliminar la foto');
+      }
+      
+      return success;
     } catch (e) {
       debugPrint('❌ Error al eliminar foto: $e');
       return false;
@@ -212,6 +232,7 @@ class PhotoService {
         orElse: () => photos.isNotEmpty ? photos.first : throw Exception('Sin fotos'),
       );
     } catch (e) {
+      debugPrint('ℹ️ No hay foto de portada para el restaurante $idRestaurante');
       return null;
     }
   }

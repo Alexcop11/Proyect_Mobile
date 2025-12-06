@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class Photo {
   final int? idFoto;
-  final String urlFoto;
+  final String urlFoto; // Se mapea desde 'url' del servidor
   final String? descripcion;
   final bool esPortada;
   final String fechaSubida;
@@ -18,20 +18,27 @@ class Photo {
   });
 
   factory Photo.fromJson(Map<String, dynamic> json) {
+    // El servidor usa 'url' en lugar de 'urlFoto'
+    final url = json['url'] ?? json['urlFoto'] ?? '';
+    
+    debugPrint('📸 Parseando foto: idFoto=${json['idFoto']}, url=$url');
+    
     return Photo(
       idFoto: json['idFoto'],
-      urlFoto: json['urlFoto'] ?? '',
+      urlFoto: url,
       descripcion: json['descripcion'],
       esPortada: json['esPortada'] ?? false,
       fechaSubida: json['fechaSubida'] ?? DateTime.now().toIso8601String(),
-      idRestaurante: json['idRestaurante'] ?? 0,
+      idRestaurante: json['idRestaurante'] ?? 
+                     json['restaurante']?['idRestaurante'] ?? 0,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'idFoto': idFoto,
-      'urlFoto': urlFoto,
+      'url': urlFoto, // Usar 'url' para compatibilidad con el servidor
+      'urlFoto': urlFoto, // Mantener ambos por compatibilidad
       'descripcion': descripcion,
       'esPortada': esPortada,
       'fechaSubida': fechaSubida,
@@ -60,7 +67,7 @@ class Photo {
 
   @override
   String toString() {
-    return 'Photo(idFoto: $idFoto, urlFoto: $urlFoto, esPortada: $esPortada, idRestaurante: $idRestaurante)';
+    return 'Photo(idFoto: $idFoto, url: $urlFoto, esPortada: $esPortada, idRestaurante: $idRestaurante)';
   }
 }
 
@@ -77,9 +84,9 @@ class PhotoUploadResponse {
 
   factory PhotoUploadResponse.fromJson(Map<String, dynamic> json) {
     return PhotoUploadResponse(
-      success: json['typeResponse'] == 'SUCCESS',
-      message: json['message'] ?? '',
-      photo: json['data'] != null ? Photo.fromJson(json['data']) : null,
+      success: json['type'] == 'SUCCESS' || json['typeResponse'] == 'SUCCESS',
+      message: json['message'] ?? json['text'] ?? '',
+      photo: json['result'] != null ? Photo.fromJson(json['result']) : null,
     );
   }
 }
