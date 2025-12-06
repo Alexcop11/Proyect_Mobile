@@ -4,6 +4,7 @@ import 'package:rating_app/models/restaurant.dart';
 import 'package:rating_app/core/providers/auth_provider.dart';
 import 'package:rating_app/core/providers/favorite_provider.dart';
 import 'package:rating_app/core/providers/restaurant_provider.dart';
+import 'package:rating_app/core/providers/photo_provider.dart';
 import 'package:rating_app/screens/client/restaurant_detail_page.dart';
 
 class RestaurantCard extends StatefulWidget {
@@ -30,7 +31,29 @@ class _RestaurantCardState extends State<RestaurantCard> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkInitialFavoriteStatus();
       _loadRating();
+      _loadPhotoIfNeeded();
     });
+  }
+
+  /// Cargar foto solo si no está en caché
+  Future<void> _loadPhotoIfNeeded() async {
+    if (widget.restaurant.idRestaurante == null) return;
+
+    final photoProvider = Provider.of<PhotoProvider>(
+      context,
+      listen: false,
+    );
+
+    // Verificar si ya está en caché o cargando
+    final cachedUrl = photoProvider.getPortadaUrl(widget.restaurant.idRestaurante!);
+    final isLoading = photoProvider.isLoadingRestaurant(widget.restaurant.idRestaurante!);
+
+    if (cachedUrl == null && !isLoading) {
+      // Solo cargar si no está en caché ni se está cargando
+      await photoProvider.loadPhotosByRestaurant(
+        widget.restaurant.idRestaurante!,
+      );
+    }
   }
 
   Future<void> _loadRating() async {
@@ -56,7 +79,7 @@ class _RestaurantCardState extends State<RestaurantCard> {
         });
       }
     } catch (e) {
-      debugPrint('Error cargando rating: $e');
+      debugPrint('❌ Error cargando rating: $e');
       if (mounted) {
         setState(() {
           _isLoadingRating = false;
@@ -140,7 +163,7 @@ class _RestaurantCardState extends State<RestaurantCard> {
     }
   }
 
-  void _navigateToDetail(BuildContext context, bool isFavorite) {
+  void _navigateToDetail(BuildContext context, String? photoUrl) {
     String horarioCompleto = '';
     if (widget.restaurant.horarioApertura.isNotEmpty &&
         widget.restaurant.horarioCierre.isNotEmpty) {
@@ -163,9 +186,7 @@ class _RestaurantCardState extends State<RestaurantCard> {
           calificacion: _averageRating,
           reviews: _totalReviews,
           ubicacion: widget.restaurant.direccion,
-          foto: widget.restaurant.menuUrl.isNotEmpty
-              ? widget.restaurant.menuUrl
-              : 'assets/images/restaurant_placeholder.jpg',
+          foto: photoUrl ?? 'assets/images/restaurant_placeholder.jpg',
           isOpen: widget.restaurant.isOpenNow,
           status: status,
           description: widget.restaurant.descripcion,
@@ -179,10 +200,21 @@ class _RestaurantCardState extends State<RestaurantCard> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<FavoriteProvider>(
-      builder: (context, favoriteProvider, child) {
+    return Consumer2<FavoriteProvider, PhotoProvider>(
+      builder: (context, favoriteProvider, photoProvider, child) {
         final restaurantId = widget.restaurant.idRestaurante;
-        final isFavorite = restaurantId != null ? favoriteProvider.isFavorite(restaurantId) : false;
+        final isFavorite = restaurantId != null 
+            ? favoriteProvider.isFavorite(restaurantId) 
+            : false;
+
+        // Obtener URL de foto desde caché
+        final photoUrl = restaurantId != null 
+            ? photoProvider.getPortadaUrl(restaurantId)
+            : null;
+
+        final isLoadingPhoto = restaurantId != null
+            ? photoProvider.isLoadingRestaurant(restaurantId)
+            : false;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 16),
@@ -197,8 +229,8 @@ class _RestaurantCardState extends State<RestaurantCard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildImageSection(context, isFavorite),
-              _buildInfoSection(context, isFavorite),
+              _buildImageSection(context, isFavorite, photoUrl, isLoadingPhoto),
+              _buildInfoSection(context, photoUrl),
             ],
           ),
         );
@@ -206,7 +238,12 @@ class _RestaurantCardState extends State<RestaurantCard> {
     );
   }
 
-  Widget _buildImageSection(BuildContext context, bool isFavorite) {
+  Widget _buildImageSection(
+    BuildContext context, 
+    bool isFavorite, 
+    String? photoUrl,
+    bool isLoadingPhoto,
+  ) {
     return Stack(
       children: [
         ClipRRect(
@@ -218,23 +255,7 @@ class _RestaurantCardState extends State<RestaurantCard> {
             height: 200,
             width: double.infinity,
             color: const Color(0xFFE8E8E8),
-            child: Image.asset(
-              widget.restaurant.menuUrl.isNotEmpty
-                  ? widget.restaurant.menuUrl
-                  : 'assets/images/restaurante.jpg',
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: Colors.grey[300],
-                  child: const Center(
-                    child: Icon(
-                      Icons.image_not_supported,
-                      color: Colors.grey,
-                    ),
-                  ),
-                );
-              },
-            ),
+            child: _buildRestaurantImage(photoUrl, isLoadingPhoto),
           ),
         ),
         if (widget.restaurant.isOpenNow)
@@ -308,7 +329,122 @@ class _RestaurantCardState extends State<RestaurantCard> {
     );
   }
 
-  Widget _buildInfoSection(BuildContext context, bool isFavorite) {
+  Widget _buildRestaurantImage(String? photoUrl, bool isLoadingPhoto) {
+    // Si está cargando, mostrar skeleton loader
+    if (isLoadingPhoto) {
+      return Container(
+        color: Colors.grey[200],
+        child: Center(
+          child: SizedBox(
+            width: 30,
+            height: 30,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                Colors.grey[400]!,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Si hay URL de Cloudinary, mostrar imagen de red
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      // Validar que sea una URL válida
+      final uri = Uri.tryParse(photoUrl);
+      if (uri != null && uri.hasScheme) {
+        return Image.network(
+          photoUrl,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            
+            final progress = loadingProgress.expectedTotalBytes != null
+                ? loadingProgress.cumulativeBytesLoaded /
+                    loadingProgress.expectedTotalBytes!
+                : null;
+            
+            return Container(
+              color: Colors.grey[200],
+              child: Center(
+                child: SizedBox(
+                  width: 30,
+                  height: 30,
+                  child: CircularProgressIndicator(
+                    value: progress,
+                    strokeWidth: 2.5,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      const Color(0xFFFF6B6B),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            debugPrint('❌ Error cargando imagen de red: $error');
+            return _buildPlaceholderImage();
+          },
+        );
+      }
+    }
+
+    // Fallback: intentar cargar desde assets (menuUrl) - solo si existe
+    if (widget.restaurant.menuUrl.isNotEmpty && 
+        !widget.restaurant.menuUrl.startsWith('http')) {
+      return Image.asset(
+        widget.restaurant.menuUrl,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildPlaceholderImage();
+        },
+      );
+    }
+
+    // Si no hay ninguna imagen, mostrar placeholder
+    return _buildPlaceholderImage();
+  }
+
+  Widget _buildPlaceholderImage() {
+    return Image.asset(
+      'assets/images/restaurante.jpg',
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          color: Colors.grey[300],
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.restaurant,
+                  color: Colors.grey[500],
+                  size: 48,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Sin imagen',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildInfoSection(BuildContext context, String? photoUrl) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -354,13 +490,12 @@ class _RestaurantCardState extends State<RestaurantCard> {
           const SizedBox(height: 12),
           _buildLocationRow(),
           const SizedBox(height: 16),
-          _buildVerRestauranteButton(context, isFavorite),
+          _buildVerRestauranteButton(context, photoUrl),
         ],
       ),
     );
   }
 
-  /// *** AQUI ESTA EL CAMBIO — SIN LOADING, SOLO EL PROMEDIO ***
   Widget _buildRating() {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -416,12 +551,12 @@ class _RestaurantCardState extends State<RestaurantCard> {
     );
   }
 
-  Widget _buildVerRestauranteButton(BuildContext context, bool isFavorite) {
+  Widget _buildVerRestauranteButton(BuildContext context, String? photoUrl) {
     return SizedBox(
       width: double.infinity,
       height: 48,
       child: ElevatedButton(
-        onPressed: () => _navigateToDetail(context, isFavorite),
+        onPressed: () => _navigateToDetail(context, photoUrl),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFFFF6B6B),
           shape: RoundedRectangleBorder(
