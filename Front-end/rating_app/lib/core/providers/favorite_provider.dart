@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:rating_app/core/services/favorite_service.dart';
+import 'package:rating_app/core/services/notification_services.dart';
 import 'package:rating_app/models/favorite.dart';
 
 class FavoriteProvider with ChangeNotifier {
@@ -8,14 +9,14 @@ class FavoriteProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   List<Favorite> _favorites = [];
-  
+
   // Map para cachear el estado de favoritos por restaurante
   final Map<int, bool> _favoriteStatus = {};
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   List<Favorite> get favorites => _favorites;
-  
+
   FavoriteProvider(this._favoriteService);
 
   /// Verificar si un restaurante está en favoritos
@@ -34,7 +35,7 @@ class FavoriteProvider with ChangeNotifier {
 
     try {
       debugPrint('❤️ Agregando restaurante $restaurantId a favoritos');
-      
+
       final favorite = await _favoriteService.addFavorite(
         userId: userId,
         restaurantId: restaurantId,
@@ -42,9 +43,10 @@ class FavoriteProvider with ChangeNotifier {
 
       _favorites.add(favorite);
       _favoriteStatus[restaurantId] = true;
-      
+
       debugPrint('✅ Favorito agregado exitosamente');
-      
+
+
       return true;
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
@@ -67,7 +69,7 @@ class FavoriteProvider with ChangeNotifier {
 
     try {
       debugPrint('💔 Eliminando restaurante $restaurantId de favoritos');
-      
+
       final success = await _favoriteService.removeFavorite(
         userId: userId,
         restaurantId: restaurantId,
@@ -75,13 +77,13 @@ class FavoriteProvider with ChangeNotifier {
 
       if (success) {
         _favorites.removeWhere(
-          (f) => f.restaurante?.idRestaurante == restaurantId
+          (f) => f.restaurante?.idRestaurante == restaurantId,
         );
         _favoriteStatus[restaurantId] = false;
-        
+
         debugPrint('✅ Favorito eliminado exitosamente');
       }
-      
+
       return success;
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
@@ -99,17 +101,11 @@ class FavoriteProvider with ChangeNotifier {
     required int restaurantId,
   }) async {
     final isFav = isFavorite(restaurantId);
-    
+
     if (isFav) {
-      return await removeFavorite(
-        userId: userId,
-        restaurantId: restaurantId,
-      );
+      return await removeFavorite(userId: userId, restaurantId: restaurantId);
     } else {
-      return await addFavorite(
-        userId: userId,
-        restaurantId: restaurantId,
-      );
+      return await addFavorite(userId: userId, restaurantId: restaurantId);
     }
   }
 
@@ -121,9 +117,9 @@ class FavoriteProvider with ChangeNotifier {
 
     try {
       debugPrint('📋 Cargando favoritos del usuario $userId');
-      
+
       _favorites = await _favoriteService.getUserFavorites(userId);
-      
+
       // Actualizar el map de estado
       _favoriteStatus.clear();
       for (var favorite in _favorites) {
@@ -131,7 +127,7 @@ class FavoriteProvider with ChangeNotifier {
           _favoriteStatus[favorite.restaurante!.idRestaurante!] = true;
         }
       }
-      
+
       debugPrint('✅ ${_favorites.length} favoritos cargados');
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
@@ -153,10 +149,10 @@ class FavoriteProvider with ChangeNotifier {
         userId: userId,
         restaurantId: restaurantId,
       );
-      
+
       _favoriteStatus[restaurantId] = isFav;
       notifyListeners();
-      
+
       return isFav;
     } catch (e) {
       debugPrint('❌ Error al verificar favorito: $e');

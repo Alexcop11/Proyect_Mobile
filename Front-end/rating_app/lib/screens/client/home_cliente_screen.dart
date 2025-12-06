@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:rating_app/core/providers/auth_provider.dart';
 import 'package:rating_app/core/providers/restaurant_provider.dart';
+import 'package:rating_app/core/services/notification_services.dart';
 import 'package:rating_app/widgets/common/app_bar_custom.dart';
 import 'package:rating_app/widgets/client/welcome_card.dart';
 import 'package:rating_app/widgets/client/search.dart';
@@ -17,18 +18,19 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
-Future<void> _loadData() async {
-  await _loadRestaurants();
-  await _loadFavorites(); // Cargar favoritos después de restaurantes
-}
+  Future<void> _loadData() async {
+    await _loadRestaurants();
+    await _loadFavorites(); // Cargar favoritos después de restaurantes
+    await _loadNotification();
+  }
 
-@override
-void initState() {
-  super.initState();
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    _loadData();
-  });
-}
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
+  }
 
   Future<void> _loadRestaurants() async {
     final restaurantProvider = Provider.of<RestaurantProvider>(
@@ -51,6 +53,21 @@ void initState() {
       await favoriteProvider.loadUserFavorites(
         authProvider.currentUser!.idUsuario!,
       );
+    }
+  }
+
+  Future<void> _loadNotification() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.currentUser != null) {
+      print("👤 Usuario encontrado: ${authProvider.currentUser!.idUsuario}");
+      await NotificationService().initialize();
+      print("🔔 NotificationService.initialize() llamado");
+      await NotificationService().updatePushToken(
+        authProvider.currentUser!.idUsuario!,
+      );
+      print("📨 updatePushToken() llamado");
+    } else {
+      print("❌ authProvider.currentUser es null");
     }
   }
 
@@ -121,10 +138,7 @@ void initState() {
 
             return Scaffold(
               backgroundColor: const Color(0xFFF8F8F8),
-              appBar: AppBarCustom(
-                title: 'FoodFinder',
-                
-              ),
+              appBar: AppBarCustom(title: 'FoodFinder'),
               body: RefreshIndicator(
                 onRefresh: _loadRestaurants,
                 color: const Color(0xFFFF6B6B),

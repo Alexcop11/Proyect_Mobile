@@ -45,7 +45,7 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
 
       // Cargar restaurante del propietario
       if (authProvider.email != null) {
-        await restaurantProvider.loadOwnerRestaurant(authProvider.email!);
+        await restaurantProvider.loadOwnerRestaurant(authProvider.email!,authProvider);
       }
 
       if (mounted) {
@@ -391,7 +391,7 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
                     if (result == true && authProvider.email != null) {
                       final restaurantProvider = context.read<RestaurantProvider>();
                       await restaurantProvider.loadOwnerRestaurant(
-                        authProvider.email!,
+                        authProvider.email!,authProvider
                       );
                     }
                   },

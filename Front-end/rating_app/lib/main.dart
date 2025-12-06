@@ -1,18 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:rating_app/core/providers/auth_provider.dart';
-import 'package:rating_app/core/providers/restaurant_provider.dart';
-import 'package:rating_app/core/services/api_services.dart';
-import 'package:rating_app/core/services/auth_service.dart';
-import 'package:rating_app/core/services/user_service.dart';
-import 'package:rating_app/core/services/restaurant_service.dart';
-import 'package:rating_app/core/services/favorite_service.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
 import 'package:rating_app/screens/auth_wrapper.dart';
-import 'package:rating_app/core/providers/favorite_provider.dart';
+import 'package:rating_app/screens/map_screen.dart';
+
+import 'core/providers/auth_provider.dart';
+import 'core/providers/restaurant_provider.dart';
+import 'core/providers/favorite_provider.dart';
+
+import 'core/services/auth_service.dart';
+import 'core/services/api_services.dart';
+import 'core/services/user_service.dart';
+import 'core/services/restaurant_service.dart';
+import 'core/services/favorite_service.dart';
+
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  debugPrint("📩 Notificación en background: ${message.messageId}");
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp();
+    debugPrint("✅ Firebase inicializado");
+  } catch (e) {
+    debugPrint("❌ Error al inicializar Firebase: $e");
+  }
+
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   runApp(const MyApp());
 }
@@ -22,62 +42,55 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Crear instancias una sola vez
-    final apiServices = ApiServices();
-    final authService = AuthService(apiServices);
-    final userService = UserService(apiServices);
-    final restaurantService = RestaurantService(apiServices);
-    final favoriteService = FavoriteService(apiServices);
-    
     return MultiProvider(
       providers: [
-        // 1. Proveedor de ApiServices
-        Provider<ApiServices>.value(
-          value: apiServices,
-        ),
-        
-        // 2. Proveedor de AuthService
-        Provider<AuthService>.value(
-          value: authService,
-        ),
-        
-        // 3. Proveedor de UserService
-        Provider<UserService>.value(
-          value: userService,
-        ),
-        
-        // 4. Proveedor de RestaurantService
-        Provider<RestaurantService>.value(
-          value: restaurantService,
-        ),
-        
-        // 5. Proveedor de AuthProvider (ChangeNotifier)
-        ChangeNotifierProvider<AuthProvider>(
-          create: (_) => AuthProvider(authService, userService),
-        ),
-        
-        // 6. Proveedor de RestaurantProvider (ChangeNotifier)
-        ChangeNotifierProvider<RestaurantProvider>(
-          create: (_) => RestaurantProvider(restaurantService),
-        ),
-        // 7. Proveedor de FavoriteService
-        Provider<FavoriteService>.value(
-          value: favoriteService,
-        ),
-        // 8. Proveedor de FavoriteProvider (ChangeNotifier)
-        ChangeNotifierProvider<FavoriteProvider>(
-          create: (_) => FavoriteProvider(favoriteService),
-        ),  
+        Provider<ApiServices>(create: (_) => ApiServices()),
 
+        ProxyProvider<ApiServices, AuthService>(
+          update: (_, apiService, __) => AuthService(apiService),
+        ),
+
+        ProxyProvider<ApiServices, UserService>(
+          update: (_, apiService, __) => UserService(apiService),
+        ),
+
+        ChangeNotifierProxyProvider2<AuthService, UserService, AuthProvider>(
+          create: (context) => AuthProvider(
+            context.read<AuthService>(),
+            context.read<UserService>(),
+          ),
+          update: (_, authService, userService, __) =>
+              AuthProvider(authService, userService),
+        ),
+
+        ProxyProvider<ApiServices, RestaurantService>(
+          update: (_, apiService, __) => RestaurantService(apiService),
+        ),
+
+        ChangeNotifierProxyProvider<RestaurantService, RestaurantProvider>(
+          create: (context) =>
+              RestaurantProvider(context.read<RestaurantService>()),
+          update: (_, restaurantService, __) =>
+              RestaurantProvider(restaurantService),
+        ),
+
+        ProxyProvider<ApiServices, FavoriteService>(
+          update: (_, apiService, __) => FavoriteService(apiService),
+        ),
+
+        ChangeNotifierProxyProvider<FavoriteService, FavoriteProvider>(
+          create: (context) => FavoriteProvider(context.read<FavoriteService>()),
+          update: (_, favoriteService, __) => FavoriteProvider(favoriteService),
+        ),
       ],
       child: MaterialApp(
-        title: 'Rating App',
+        title: 'Consumo Backend App',
+        theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+        home: const AuthWrapper(), // ✅ aquí se inicializan notificaciones
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFFF6B6B)),
-          useMaterial3: true,
-        ),
-        home: const AuthWrapper(),
+        routes: {
+          "/search": (context) => const MapaScreen(),
+        },
       ),
     );
   }

@@ -34,6 +34,7 @@ class _EditRestaurantScreenState extends State<EditRestaurantScreen> {
     'Americana',
     'Vegetariana',
     'Mariscos',
+    'Dulces',
     'Otro',
   ];
 

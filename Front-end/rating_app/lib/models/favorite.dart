@@ -35,6 +35,8 @@ class Favorite {
     }
   }
 
+  get restaurantName => null;
+
   Map<String, dynamic> toJson() {
     return {
       if (idFavorito != null) 'idFavorito': idFavorito,

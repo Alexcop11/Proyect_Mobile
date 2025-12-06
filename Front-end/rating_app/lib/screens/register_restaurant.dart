@@ -67,7 +67,7 @@ class Registerrestaurant extends State<RegisterRestaurant> {
       idUsuarioPropietario: authProvider.currentUser!.idUsuario!,
       nombre: nombreController.text,
       descripcion: descripcionController.text,
-      direccion: direccionController.text,
+      direccion: direccionController.text.isNotEmpty? direccionController.text: "Ubicación actual",
       latitud: latitud ?? 0.0,
       longitud: longitud ?? 0.0,
       telefono: telefonoController.text,

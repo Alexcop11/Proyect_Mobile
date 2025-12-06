@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:rating_app/core/services/api_services.dart';
+import 'package:rating_app/core/services/notification_services.dart';
+import 'package:rating_app/core/services/restaurant_service.dart';
 import 'package:rating_app/core/utils/constants.dart';
 import 'package:rating_app/models/favorite.dart';
 
@@ -18,18 +20,25 @@ class FavoriteService {
       final response = await _apiServices.request(
         method: 'POST',
         endpoint: Api_Constants.favoritePoint,
-        data: {
-          'idUsuario': userId,
-          'idRestaurante': restaurantId,
-        },
+        data: {'idUsuario': userId, 'idRestaurante': restaurantId},
       );
+      final ownerId = await RestaurantService(_apiServices).getOwnerIdByRestaurant(restaurantId);
+      debugPrint("$ownerId");
 
+      await NotificationService().sendNotification(
+        userId: ownerId!,
+        titulo: "Nuevo Favorito",
+        mensaje: "Parece que alguien añadio tu restaurante como favorito",
+      );
       final responseData = response.data;
-      debugPrint("📤 Agregando favorito - Usuario: $userId, Restaurante: $restaurantId");
+      debugPrint(
+        "📤 Agregando favorito - Usuario: $userId, Restaurante: $restaurantId",
+      );
       debugPrint("📥 Respuesta: ${jsonEncode(responseData)}");
 
       if (responseData['type'] == 'SUCCESS' && responseData['result'] != null) {
-        return Favorite.fromJson(responseData['result']);
+        final favorite = Favorite.fromJson(responseData['result']);
+        return favorite;
       } else {
         throw Exception(responseData['text'] ?? 'Error al agregar favorito');
       }
@@ -65,7 +74,8 @@ class FavoriteService {
     try {
       final response = await _apiServices.request(
         method: 'DELETE',
-        endpoint: '${Api_Constants.favoritePoint}user/$userId/restaurant/$restaurantId',
+        endpoint:
+            '${Api_Constants.favoritePoint}user/$userId/restaurant/$restaurantId',
       );
 
       final responseData = response.data;
@@ -87,13 +97,13 @@ class FavoriteService {
       );
 
       final responseData = response.data;
-      debugPrint("📡 getUserFavorites: ${responseData['result']?.length ?? 0} favoritos");
+      debugPrint(
+        "📡 getUserFavorites: ${responseData['result']?.length ?? 0} favoritos",
+      );
 
       if (responseData['type'] == 'SUCCESS' && responseData['result'] != null) {
         final List<dynamic> favoritesJson = responseData['result'];
-        return favoritesJson
-            .map((json) => Favorite.fromJson(json))
-            .toList();
+        return favoritesJson.map((json) => Favorite.fromJson(json)).toList();
       }
       return [];
     } catch (e) {
@@ -111,13 +121,13 @@ class FavoriteService {
       );
 
       final responseData = response.data;
-      debugPrint("📡 getRestaurantFavorites: ${responseData['result']?.length ?? 0} usuarios");
+      debugPrint(
+        "📡 getRestaurantFavorites: ${responseData['result']?.length ?? 0} usuarios",
+      );
 
       if (responseData['type'] == 'SUCCESS' && responseData['result'] != null) {
         final List<dynamic> favoritesJson = responseData['result'];
-        return favoritesJson
-            .map((json) => Favorite.fromJson(json))
-            .toList();
+        return favoritesJson.map((json) => Favorite.fromJson(json)).toList();
       }
       return [];
     } catch (e) {
@@ -134,7 +144,8 @@ class FavoriteService {
     try {
       final response = await _apiServices.request(
         method: 'GET',
-        endpoint: '${Api_Constants.favoritePoint}user/$userId/restaurant/$restaurantId/exists',
+        endpoint:
+            '${Api_Constants.favoritePoint}user/$userId/restaurant/$restaurantId/exists',
       );
 
       final responseData = response.data;
@@ -176,7 +187,8 @@ class FavoriteService {
     try {
       final response = await _apiServices.request(
         method: 'GET',
-        endpoint: '${Api_Constants.favoritePoint}restaurant/$restaurantId/count',
+        endpoint:
+            '${Api_Constants.favoritePoint}restaurant/$restaurantId/count',
       );
 
       final responseData = response.data;

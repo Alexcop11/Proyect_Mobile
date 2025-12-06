@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:rating_app/core/providers/auth_provider.dart';
 import 'package:rating_app/core/providers/restaurant_provider.dart';
+import 'package:rating_app/core/services/notification_services.dart';
 import 'package:rating_app/screens/login_screen.dart';
 import 'package:rating_app/screens/main_restaurant_navigation.dart';
 import 'package:rating_app/widgets/common/app_bar_custom.dart';
@@ -25,7 +26,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       );
 
       if (authProvider.email != null) {
-        restaurantProvider.loadOwnerRestaurant(authProvider.email!);
+        restaurantProvider.loadOwnerRestaurant(authProvider.email!,authProvider);
       }
     });
   }
@@ -53,11 +54,12 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                   Text("Error: ${restaurantProvider.errorMessage}"),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: () {
+                    onPressed: () async {
                       if (authProvider.email != null) {
                         restaurantProvider.loadOwnerRestaurant(
-                          authProvider.email!,
+                          authProvider.email!,authProvider
                         );
+                        await authProvider.initializeUserServices();
                       }
                     },
                     child: const Text("Reintentar"),
@@ -71,22 +73,19 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
         final restaurant = restaurantProvider.ownerRestaurant;
         if (restaurant == null) {
           return const Scaffold(
-            body: Center(
-              child: Text("No tienes restaurante registrado"),
-            ),
+            body: Center(child: Text("No tienes restaurante registrado")),
           );
         }
 
         return Scaffold(
-          appBar:  AppBarCustom(
-            title: 'FoodFinder',
-          ),
+          appBar: AppBarCustom(title: 'FoodFinder'),
           body: RefreshIndicator(
             onRefresh: () async {
               if (authProvider.email != null) {
                 await restaurantProvider.loadOwnerRestaurant(
-                  authProvider.email!,
+                  authProvider.email!,authProvider
                 );
+                await authProvider.initializeUserServices();
               }
             },
             child: SingleChildScrollView(
@@ -101,9 +100,9 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       nombre: authProvider.currentUser?.nombre ?? 'Usuario',
                       restaurante: restaurant.nombre,
                     ),
-                    
+
                     const SizedBox(height: 16),
-                    
+
                     // Tarjetas de estadísticas
                     Row(
                       children: [
@@ -130,9 +129,9 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         ),
                       ],
                     ),
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // Sección de valoración
                     const Text(
                       'VALORACIÓN',
@@ -143,16 +142,19 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         letterSpacing: 1.2,
                       ),
                     ),
-                    
+
                     const SizedBox(height: 16),
-                    
+
                     // Card de valoración
                     _buildRatingCard(
                       rating: restaurantProvider.averageRating,
                       totalReviews: restaurantProvider.totalReviews,
                       onPressed: () {
                         // Navegar a la pantalla de reseñas usando el navigation principal
-                        final navigationState = context.findAncestorStateOfType<State<MainRestaurantNavigation>>();
+                        final navigationState = context
+                            .findAncestorStateOfType<
+                              State<MainRestaurantNavigation>
+                            >();
                         if (navigationState != null) {
                           (navigationState as dynamic).navigateToReviews();
                         }
@@ -200,10 +202,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
           const SizedBox(height: 4),
           Text(
             restaurante,
-            style: const TextStyle(
-              fontSize: 16,
-              color: Color(0xFF666666),
-            ),
+            style: const TextStyle(fontSize: 16, color: Color(0xFF666666)),
           ),
         ],
       ),
@@ -231,11 +230,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       ),
       child: Column(
         children: [
-          Icon(
-            icon,
-            color: iconColor,
-            size: 24,
-          ),
+          Icon(icon, color: iconColor, size: 24),
           const SizedBox(height: 8),
           Text(
             count,
@@ -249,10 +244,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
           Text(
             label,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF666666),
-            ),
+            style: const TextStyle(fontSize: 12, color: Color(0xFF666666)),
           ),
         ],
       ),
@@ -308,9 +300,9 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
               }
             }),
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Rating número
           Text(
             rating.toStringAsFixed(1),
@@ -320,20 +312,17 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
               color: Color(0xFF1A1A1A),
             ),
           ),
-          
+
           const SizedBox(height: 8),
-          
+
           // Texto de reseñas
           Text(
             'Basado en $totalReviews reseñas',
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF666666),
-            ),
+            style: const TextStyle(fontSize: 14, color: Color(0xFF666666)),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Botón de ver reseñas
           SizedBox(
             width: double.infinity,
@@ -350,10 +339,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
               ),
               child: const Text(
                 'Ver reseñas',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ),
           ),

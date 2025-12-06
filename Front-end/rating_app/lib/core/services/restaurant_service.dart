@@ -56,7 +56,9 @@ class RestaurantService {
       if (responseData['type'] == 'SUCCESS' && responseData['result'] != null) {
         return Restaurant.fromJson(responseData['result']);
       } else {
-        throw Exception(responseData['text'] ?? 'Error al registrar restaurante');
+        throw Exception(
+          responseData['text'] ?? 'Error al registrar restaurante',
+        );
       }
     } catch (e) {
       debugPrint('❌ Error en createRestaurant: $e');
@@ -79,7 +81,9 @@ class RestaurantService {
       if (responseData['type'] == 'SUCCESS' && responseData['result'] != null) {
         return Restaurant.fromJson(responseData['result']);
       } else {
-        throw Exception(responseData['message'] ?? 'Error al actualizar restaurante');
+        throw Exception(
+          responseData['message'] ?? 'Error al actualizar restaurante',
+        );
       }
     } catch (e) {
       debugPrint('❌ Error en updateRestaurant: $e');
@@ -129,6 +133,27 @@ class RestaurantService {
     }
   }
 
+  Future<int?> getOwnerIdByRestaurant(int id) async {
+    try {
+      final response = await _apiServices.request(
+        method: 'GET',
+        endpoint: '${Api_Constants.restaurantPoint}$id',
+      );
+
+      final responseData = response.data;
+      debugPrint("📡 getRestaurantById: ${jsonEncode(responseData)}");
+
+      if (responseData['type'] == 'SUCCESS' && responseData['result'] != null) {
+        // Aquí extraes solo el idUsuario
+        return responseData['result']['usuarioPropietario']['idUsuario'] as int;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('❌ Error en getRestaurantById: $e');
+      return null;
+    }
+  }
+
   /// Obtener todos los restaurantes
   Future<List<Restaurant>> getAllRestaurants() async {
     try {
@@ -138,13 +163,15 @@ class RestaurantService {
       );
 
       final responseData = response.data;
-      
+
       if (responseData['type'] == 'SUCCESS' && responseData['result'] != null) {
         final List<dynamic> restaurantsJson = responseData['result'];
-        debugPrint("📡 getAllRestaurants: Intentando parsear ${restaurantsJson.length} restaurantes");
-        
+        debugPrint(
+          "📡 getAllRestaurants: Intentando parsear ${restaurantsJson.length} restaurantes",
+        );
+
         final List<Restaurant> restaurants = [];
-        
+
         for (int i = 0; i < restaurantsJson.length; i++) {
           try {
             final restaurant = Restaurant.fromJson(restaurantsJson[i]);
@@ -152,14 +179,18 @@ class RestaurantService {
             debugPrint("✅ Restaurante $i parseado: ${restaurant.nombre}");
           } catch (e) {
             debugPrint("❌ Error parseando restaurante $i: $e");
-            debugPrint("📄 JSON del restaurante con error: ${restaurantsJson[i]}");
+            debugPrint(
+              "📄 JSON del restaurante con error: ${restaurantsJson[i]}",
+            );
           }
         }
-        
-        debugPrint("✅ Total de restaurantes parseados correctamente: ${restaurants.length}");
+
+        debugPrint(
+          "✅ Total de restaurantes parseados correctamente: ${restaurants.length}",
+        );
         return restaurants;
       }
-      
+
       debugPrint("⚠️ Respuesta no válida o sin resultados");
       return [];
     } catch (e) {
@@ -178,7 +209,9 @@ class RestaurantService {
       );
 
       final responseData = response.data;
-      debugPrint("📡 searchRestaurants: ${responseData['result']?.length ?? 0} resultados para '$query'");
+      debugPrint(
+        "📡 searchRestaurants: ${responseData['result']?.length ?? 0} resultados para '$query'",
+      );
 
       if (responseData['type'] == 'SUCCESS' && responseData['result'] != null) {
         final List<dynamic> restaurantsJson = responseData['result'];
@@ -203,7 +236,9 @@ class RestaurantService {
       );
 
       final responseData = response.data;
-      debugPrint("📡 getRestaurantsByCategory: ${responseData['result']?.length ?? 0} restaurantes de '$categoria'");
+      debugPrint(
+        "📡 getRestaurantsByCategory: ${responseData['result']?.length ?? 0} restaurantes de '$categoria'",
+      );
 
       if (responseData['type'] == 'SUCCESS' && responseData['result'] != null) {
         final List<dynamic> restaurantsJson = responseData['result'];
@@ -236,7 +271,9 @@ class RestaurantService {
       );
 
       final responseData = response.data;
-      debugPrint("📡 getNearbyRestaurants: ${responseData['result']?.length ?? 0} restaurantes cercanos");
+      debugPrint(
+        "📡 getNearbyRestaurants: ${responseData['result']?.length ?? 0} restaurantes cercanos",
+      );
 
       if (responseData['type'] == 'SUCCESS' && responseData['result'] != null) {
         final List<dynamic> restaurantsJson = responseData['result'];
@@ -280,7 +317,9 @@ class RestaurantService {
       );
 
       final responseData = response.data;
-      debugPrint("📡 getReviews: ${responseData['result']?.length ?? 0} reviews para restaurante $idRestaurante");
+      debugPrint(
+        "📡 getReviews: ${responseData['result']?.length ?? 0} reviews para restaurante $idRestaurante",
+      );
 
       if (responseData['type'] == 'SUCCESS' && responseData['result'] != null) {
         final List<dynamic> reviewsJson = responseData['result'];
@@ -315,13 +354,15 @@ class RestaurantService {
 
       double total = 0;
       for (var review in reviews) {
-        total += ((review.puntuacionComida ?? 0) +
-                 (review.puntuacionServicio ?? 0) +
-                 (review.puntuacionAmbiente ?? 0)) / 3.0;
+        total +=
+            ((review.puntuacionComida ?? 0) +
+                (review.puntuacionServicio ?? 0) +
+                (review.puntuacionAmbiente ?? 0)) /
+            3.0;
       }
-      
+
       double average = total / reviews.length;
-      
+
       return {"average": average, "count": reviews.length};
     } catch (e) {
       debugPrint('❌ Error en getReviewsSummary: $e');
@@ -413,7 +454,8 @@ class RestaurantService {
     try {
       final response = await _apiServices.request(
         method: 'GET',
-        endpoint: '${Api_Constants.favoritePoint}restaurant/$idRestaurante/count',
+        endpoint:
+            '${Api_Constants.favoritePoint}restaurant/$idRestaurante/count',
       );
 
       final responseData = response.data;
@@ -463,7 +505,8 @@ class RestaurantService {
     try {
       final response = await _apiServices.request(
         method: 'DELETE',
-        endpoint: '${Api_Constants.favoritePoint}user/$idUsuario/restaurant/$idRestaurante',
+        endpoint:
+            '${Api_Constants.favoritePoint}user/$idUsuario/restaurant/$idRestaurante',
       );
 
       final responseData = response.data;
@@ -484,12 +527,14 @@ class RestaurantService {
     try {
       final response = await _apiServices.request(
         method: 'GET',
-        endpoint: '${Api_Constants.favoritePoint}user/$idUsuario/restaurant/$idRestaurante',
+        endpoint:
+            '${Api_Constants.favoritePoint}user/$idUsuario/restaurant/$idRestaurante',
       );
 
       final responseData = response.data;
-      
-      return responseData['type'] == 'SUCCESS' && responseData['result'] != null;
+
+      return responseData['type'] == 'SUCCESS' &&
+          responseData['result'] != null;
     } catch (e) {
       debugPrint('❌ Error en isFavorite: $e');
       return false;

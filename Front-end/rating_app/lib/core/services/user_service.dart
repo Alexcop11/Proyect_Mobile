@@ -1,6 +1,13 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:rating_app/core/services/api_services.dart';
+import 'package:rating_app/core/utils/constants.dart';
 import 'package:rating_app/models/user.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+
 class UserService {
   final ApiServices _apiServices;
 
@@ -13,7 +20,7 @@ class UserService {
       
       final response = await _apiServices.request(
         method: 'GET',
-        endpoint: 'http://192.168.1.72:8000/api/users/email/$email',
+        endpoint: 'http://192.168.0.6:8000/api/users/email/$email',
       );
 
       debugPrint('📥 Respuesta getUserByEmail: ${response.data}');
@@ -37,12 +44,13 @@ class UserService {
     }
   }
 
+  
   // Obtener usuario por ID
   Future<User?> getUserById(int id) async {
     try {
       final response = await _apiServices.request(
         method: 'GET',
-        endpoint: 'http://192.168.1.72:8000/api/users/$id',
+        endpoint: 'http://192.168.0.6:8000/api/users/$id',
       );
 
       if (response.data['type'] == 'SUCCESS' && response.data['result'] != null) {
@@ -75,7 +83,7 @@ class UserService {
       
       final response = await _apiServices.request(
         method: 'PUT',
-        endpoint: 'http://192.168.1.72:8000/api/users/',
+        endpoint: 'http://192.168.0.6:8000/api/users/',
         data: {
           'idUsuario': idUsuario,
           'nombre': nombre,
@@ -109,7 +117,7 @@ class UserService {
     try {
       final response = await _apiServices.request(
         method: 'PATCH',
-        endpoint: 'http://192.168.1.72:8000/api/users/change-password',
+        endpoint: 'http://192.168.0.6:8000/api/users/change-password',
         data: {
           'id': idUsuario,
           'password': newPassword,
@@ -121,5 +129,39 @@ class UserService {
       debugPrint('❌ Error cambiando contraseña: $e');
       throw Exception('Error al cambiar contraseña: ${e.toString()}');
     }
+  }
+
+  //Token para las notificaciones
+  Future<void> registerPushToken(String userId) async {
+    final messaging = FirebaseMessaging.instance;
+
+    final token = await messaging.getToken();
+    debugPrint("✅ Token FCM real: $token");
+
+    if (token != null) {
+      final url = Uri.parse("http://192.168.0.6:8000/api/users/push-token");
+      final response = await http.patch(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"id": int.parse(userId), "pushToken": token}),
+      );
+
+      if (response.statusCode == 200) {
+        debugPrint("🎯 Token enviado al backend");
+      } else {
+        debugPrint("❌ Error al enviar token: ${response.body}");
+      }
+    }
+
+    // Escucha cambios de token
+    FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+      debugPrint("🔄 Token FCM refrescado: $newToken");
+      final url = Uri.parse("http://192.168.0.6:8000/api/users/push-token");
+      await http.patch(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"id": int.parse(userId), "pushToken": newToken}),
+      );
+    });
   }
 }

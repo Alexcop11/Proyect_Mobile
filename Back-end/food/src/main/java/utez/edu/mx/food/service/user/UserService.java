@@ -16,6 +16,7 @@ import utez.edu.mx.food.utils.TypesResponse;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -233,15 +234,24 @@ public class UserService {
     public ResponseEntity<?> updatePushToken(UserPushTokenDTO dto) {
         Optional<UserBean> optional = userRepository.findById(dto.getId());
 
-        if (!optional.isPresent()) {
-            return new ResponseEntity<>(new Message("Push token guardado/actualizado correctamente", TypesResponse.ERROR), HttpStatus.NOT_FOUND);
+        if (optional.isEmpty()) {
+            return new ResponseEntity<>(
+                    new Message("Usuario no encontrado", TypesResponse.ERROR),
+                    HttpStatus.NOT_FOUND
+            );
         }
 
         UserBean user = optional.get();
         user.setPushToken(dto.getPushToken());
         userRepository.save(user);
 
-        return new ResponseEntity<>(new Message("Push token guardado/actualizado correctamente", TypesResponse.SUCCESS), HttpStatus.OK);
+        return new ResponseEntity<>(
+                Map.of(
+                        "status", "OK",
+                        "message", "Push token actualizado correctamente"
+                ),
+                HttpStatus.OK
+        );
     }
 
 

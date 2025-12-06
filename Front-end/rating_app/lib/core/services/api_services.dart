@@ -18,7 +18,7 @@ class ApiServices {
         // ✅ Aumentar timeouts
         connectTimeout: const Duration(seconds: 30), // Era 10, ahora 30
         receiveTimeout: const Duration(seconds: 30), // Era 10, ahora 30
-        sendTimeout: const Duration(seconds: 30),    // Nuevo
+        sendTimeout: const Duration(seconds: 30), // Nuevo
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -48,12 +48,12 @@ class ApiServices {
           // Log de error
           print('❌ Error: ${error.type}');
           print('❌ Message: ${error.message}');
-          
+
           if (error.response?.statusCode == 401) {
             print("🔒 Token expirado o inválido");
             cleanToken();
           }
-          
+
           return handler.next(error);
         },
       ),
@@ -100,14 +100,18 @@ class ApiServices {
   Exception _handleError(DioException error) {
     switch (error.type) {
       case DioExceptionType.connectionTimeout:
-        return Exception('Timeout de conexión. Verifica tu conexión a internet.');
-      
+        return Exception(
+          'Timeout de conexión. Verifica tu conexión a internet.',
+        );
+
       case DioExceptionType.sendTimeout:
         return Exception('Timeout al enviar datos. El servidor no responde.');
-      
+
       case DioExceptionType.receiveTimeout:
-        return Exception('Timeout al recibir datos. El servidor tardó demasiado.');
-      
+        return Exception(
+          'Timeout al recibir datos. El servidor tardó demasiado.',
+        );
+
       case DioExceptionType.badResponse:
         final responseData = error.response!.data;
         if (responseData is Map && responseData.containsKey('message')) {
@@ -117,17 +121,21 @@ class ApiServices {
           return Exception(responseData['text']);
         }
         return Exception('Error del servidor: ${error.response!.statusCode}');
-      
+
       case DioExceptionType.cancel:
         return Exception('Petición cancelada');
-      
+
       case DioExceptionType.connectionError:
-        return Exception('Error de conexión. Verifica que el servidor esté corriendo.');
-      
+        return Exception(
+          'Error de conexión. Verifica que el servidor esté corriendo.',
+        );
+
       default:
         return Exception('Error de red: ${error.message}');
     }
   }
+
+ 
 
   void setEmail(String email) {
     _email = email;
