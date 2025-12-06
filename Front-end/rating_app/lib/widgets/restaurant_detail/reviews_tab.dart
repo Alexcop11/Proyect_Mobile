@@ -28,8 +28,10 @@ class _ReviewsTabState extends State<ReviewsTab> {
   }
 
   Future<void> _loadReviews() async {
+    debugPrint('🔄 Recargando reseñas del restaurante ${widget.idRestaurante}');
     final provider = context.read<RestaurantProvider>();
     await provider.loadRestaurantStats(widget.idRestaurante);
+    debugPrint('✅ Reseñas recargadas');
   }
 
   // Verificar si el usuario actual ya tiene una reseña
@@ -39,26 +41,17 @@ class _ReviewsTabState extends State<ReviewsTab> {
     
     // Si no hay usuario logueado, retornar false
     if (authProvider.currentUser == null) {
-      debugPrint('⚠️ No hay usuario logueado');
       return false;
     }
     
     final userId = authProvider.currentUser!.idUsuario;
     final reviews = restaurantProvider.reviews;
     
-    debugPrint('🔍 Verificando reseñas para usuario ID: $userId');
-    debugPrint('📋 Total de reseñas: ${reviews.length}');
-    
     // Verificar si alguna reseña pertenece al usuario actual
     final hasReview = reviews.any((review) {
       final reviewUserId = review.usuario?.idUsuario;
-      debugPrint('   Reseña de usuario ID: $reviewUserId');
       return reviewUserId == userId;
     });
-    
-    debugPrint(hasReview 
-        ? '✅ Usuario YA tiene una reseña' 
-        : '❌ Usuario NO tiene reseña');
     
     return hasReview;
   }
@@ -214,7 +207,13 @@ class _ReviewsTabState extends State<ReviewsTab> {
       ),
       builder: (context) => ReviewDialog(
         idRestaurante: widget.idRestaurante,
-        onReviewSubmitted: _loadReviews,
+        onReviewSubmitted: () {
+          debugPrint('🔔 Callback onReviewSubmitted ejecutado');
+          // Forzar reconstrucción del widget
+          setState(() {});
+          // Recargar datos
+          _loadReviews();
+        },
       ),
     );
   }

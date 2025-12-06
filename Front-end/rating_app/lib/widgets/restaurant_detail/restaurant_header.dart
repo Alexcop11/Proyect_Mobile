@@ -5,6 +5,8 @@ class RestaurantHeader extends StatelessWidget {
   final bool isOpen;
   final String status;
   final bool isFavorite;
+  final double calificacion; // Promedio de calificación
+  final int reviews; // Total de reseñas
   final VoidCallback onFavoriteTap;
   final VoidCallback onBack;
 
@@ -14,6 +16,8 @@ class RestaurantHeader extends StatelessWidget {
     required this.isOpen,
     required this.status,
     required this.isFavorite,
+    required this.calificacion,
+    required this.reviews,
     required this.onFavoriteTap,
     required this.onBack,
   }) : super(key: key);
@@ -69,6 +73,7 @@ class RestaurantHeader extends StatelessWidget {
                 );
               },
             ),
+            // Badge de estado (abierto/cerrado)
             if (isOpen)
               Positioned(
                 bottom: 16,
@@ -98,6 +103,7 @@ class RestaurantHeader extends StatelessWidget {
                   ),
                 ),
               ),
+            // Badge de calificación
           ],
         ),
       ),

@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:rating_app/core/providers/auth_provider.dart';
 import 'package:rating_app/core/providers/favorite_provider.dart';
+import 'package:rating_app/core/providers/restaurant_provider.dart';
 
-// Importar los componentes
+// COMPONENTES
 import 'package:rating_app/widgets/restaurant_detail/restaurant_header.dart';
 import 'package:rating_app/widgets/restaurant_detail/restaurant_info_card.dart';
 import 'package:rating_app/widgets/restaurant_detail/information_tab.dart';
-import 'package:rating_app/widgets/restaurant_detail/menu_tab.dart';
 import 'package:rating_app/widgets/restaurant_detail/reviews_tab.dart';
 
 class RestaurantDetailPage extends StatefulWidget {
@@ -35,11 +35,11 @@ class RestaurantDetailPage extends StatefulWidget {
     required this.ubicacion,
     required this.foto,
     this.isOpen = false,
-    this.status = 'Abierto • Cierra a las 23:00',
+    this.status = '',
     this.description = '',
     this.phone = '',
     this.horario = '',
-    this.precioPromedio = 0.0,
+    this.precioPromedio = 0,
   }) : super(key: key);
 
   @override
@@ -49,11 +49,43 @@ class RestaurantDetailPage extends StatefulWidget {
 class _RestaurantDetailPageState extends State<RestaurantDetailPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  
+
+  bool _loadingRating = true;
+  double _avgRating = 0.0;
+  int _totalReviews = 0;
+
+  Map<String, dynamic>? _ratingDetails;
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
+
+    // Cargar rating una vez renderizada la pantalla
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadRatingData();
+    });
+  }
+
+  Future<void> _loadRatingData() async {
+    final provider = Provider.of<RestaurantProvider>(context, listen: false);
+
+    try {
+      final data =
+          await provider.calculateRestaurantRating(widget.restaurantId);
+
+      if (!mounted) return;
+
+      setState(() {
+        _avgRating = data['averageRating'] ?? 0.0;
+        _totalReviews = data['totalReviews'] ?? 0;
+        _ratingDetails = data;
+        _loadingRating = false;
+      });
+    } catch (e) {
+      debugPrint("Error cargando rating: $e");
+      setState(() => _loadingRating = false);
+    }
   }
 
   @override
@@ -63,38 +95,32 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage>
   }
 
   Future<void> _handleFavoriteTap() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final favoriteProvider =
-        Provider.of<FavoriteProvider>(context, listen: false);
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final favorites = Provider.of<FavoriteProvider>(context, listen: false);
 
-    if (authProvider.currentUser == null) {
+    if (auth.currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Debes iniciar sesión para agregar favoritos'),
+          content: Text('Debes iniciar sesión'),
           backgroundColor: Colors.orange,
-          duration: Duration(seconds: 2),
         ),
       );
       return;
     }
 
-    final isFavorite = favoriteProvider.isFavorite(widget.restaurantId);
-
-    final success = await favoriteProvider.toggleFavorite(
-      userId: authProvider.currentUser!.idUsuario!,
+    final success = await favorites.toggleFavorite(
+      userId: auth.currentUser!.idUsuario!,
       restaurantId: widget.restaurantId,
     );
 
     if (success && mounted) {
-      final message = !isFavorite
-          ? 'Restaurante agregado a favoritos'
-          : 'Restaurante eliminado de favoritos';
-
+      final isFav = favorites.isFavorite(widget.restaurantId);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(message),
+          content: Text(isFav
+              ? 'Agregado a favoritos'
+              : 'Eliminado de favoritos'),
           backgroundColor: const Color(0xFFFF6B6B),
-          duration: const Duration(seconds: 2),
         ),
       );
     }
@@ -103,8 +129,8 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage>
   @override
   Widget build(BuildContext context) {
     return Consumer<FavoriteProvider>(
-      builder: (context, favoriteProvider, child) {
-        final isFavorite = favoriteProvider.isFavorite(widget.restaurantId);
+      builder: (context, favProvider, child) {
+        final isFavorite = favProvider.isFavorite(widget.restaurantId);
 
         return Scaffold(
           body: NestedScrollView(
@@ -117,13 +143,21 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage>
                   isFavorite: isFavorite,
                   onFavoriteTap: _handleFavoriteTap,
                   onBack: () => Navigator.pop(context),
+
+                  /// ⭐ Aquí se envía el rating real calculado
+                  calificacion:
+                      _loadingRating ? widget.calificacion : _avgRating,
+                  reviews: _loadingRating ? widget.reviews : _totalReviews,
                 ),
+
                 RestaurantInfoCard(
                   nombre: widget.nombre,
                   tipo: widget.tipo,
                   ubicacion: widget.ubicacion,
-                  calificacion: widget.calificacion,
+                  calificacion:
+                      _loadingRating ? widget.calificacion : _avgRating,
                 ),
+
                 SliverPersistentHeader(
                   pinned: true,
                   delegate: _StickyTabBarDelegate(
@@ -133,13 +167,9 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage>
                       unselectedLabelColor: Colors.grey,
                       indicatorColor: const Color(0xFFFF6B6B),
                       indicatorWeight: 3,
-                      labelStyle: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
                       tabs: const [
-                        Tab(text: 'Información'),
-                        Tab(text: 'Reseñas'),
+                        Tab(text: "Información"),
+                        Tab(text: "Reseñas"),
                       ],
                     ),
                   ),
@@ -154,9 +184,7 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage>
                   horario: widget.horario,
                   phone: widget.phone,
                 ),
-                ReviewsTab(
-                  idRestaurante: widget.restaurantId,
-                ),
+                ReviewsTab(idRestaurante: widget.restaurantId),
               ],
             ),
           ),
@@ -178,16 +206,10 @@ class _StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
   double get maxExtent => tabBar.preferredSize.height;
 
   @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: Colors.white,
-      child: tabBar,
-    );
+  Widget build(context, shrinkOffset, overlapsContent) {
+    return Container(color: Colors.white, child: tabBar);
   }
 
   @override
-  bool shouldRebuild(_StickyTabBarDelegate oldDelegate) {
-    return false;
-  }
+  bool shouldRebuild(_) => false;
 }

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:rating_app/models/restaurant.dart';
 import 'package:rating_app/core/providers/auth_provider.dart';
 import 'package:rating_app/core/providers/favorite_provider.dart';
+import 'package:rating_app/core/providers/restaurant_provider.dart';
 import 'package:rating_app/screens/client/restaurant_detail_page.dart';
 
 class RestaurantCard extends StatefulWidget {
@@ -19,25 +20,58 @@ class RestaurantCard extends StatefulWidget {
 
 class _RestaurantCardState extends State<RestaurantCard> {
   bool _isProcessing = false;
+  bool _isLoadingRating = true;
+  double _averageRating = 0.0;
+  int _totalReviews = 0;
 
   @override
   void initState() {
     super.initState();
-    // Verificar el estado inicial del favorito
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkInitialFavoriteStatus();
+      _loadRating();
     });
+  }
+
+  Future<void> _loadRating() async {
+    if (widget.restaurant.idRestaurante == null) {
+      return;
+    }
+
+    final restaurantProvider = Provider.of<RestaurantProvider>(
+      context,
+      listen: false,
+    );
+
+    try {
+      final ratingData = await restaurantProvider.calculateRestaurantRating(
+        widget.restaurant.idRestaurante!,
+      );
+
+      if (mounted) {
+        setState(() {
+          _averageRating = ratingData['averageRating'] ?? 0.0;
+          _totalReviews = ratingData['totalReviews'] ?? 0;
+          _isLoadingRating = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error cargando rating: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingRating = false;
+        });
+      }
+    }
   }
 
   Future<void> _checkInitialFavoriteStatus() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final favoriteProvider = Provider.of<FavoriteProvider>(context, listen: false);
-    
+
     if (authProvider.currentUser != null && widget.restaurant.idRestaurante != null) {
-      // Verificar si ya está cargado en el provider
       final isInCache = favoriteProvider.isFavorite(widget.restaurant.idRestaurante!);
-      
-      // Si no está en cache, verificar con el servidor
+
       if (!isInCache) {
         await favoriteProvider.checkFavoriteStatus(
           userId: authProvider.currentUser!.idUsuario!,
@@ -48,8 +82,8 @@ class _RestaurantCardState extends State<RestaurantCard> {
   }
 
   Future<void> _handleFavoriteTap(BuildContext context) async {
-    if (_isProcessing) return; // Evitar múltiples clicks
-    
+    if (_isProcessing) return;
+
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final favoriteProvider = Provider.of<FavoriteProvider>(context, listen: false);
 
@@ -83,9 +117,8 @@ class _RestaurantCardState extends State<RestaurantCard> {
     });
 
     if (success && context.mounted) {
-      final message = !isFavorite
-          ? 'Restaurante agregado a favoritos'
-          : 'Restaurante eliminado de favoritos';
+      final message =
+          !isFavorite ? 'Restaurante agregado a favoritos' : 'Restaurante eliminado de favoritos';
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -109,9 +142,10 @@ class _RestaurantCardState extends State<RestaurantCard> {
 
   void _navigateToDetail(BuildContext context, bool isFavorite) {
     String horarioCompleto = '';
-    if (widget.restaurant.horarioApertura.isNotEmpty && 
+    if (widget.restaurant.horarioApertura.isNotEmpty &&
         widget.restaurant.horarioCierre.isNotEmpty) {
-      horarioCompleto = '${widget.restaurant.horarioApertura} - ${widget.restaurant.horarioCierre}';
+      horarioCompleto =
+          '${widget.restaurant.horarioApertura} - ${widget.restaurant.horarioCierre}';
     }
 
     String status = 'Cerrado';
@@ -126,8 +160,8 @@ class _RestaurantCardState extends State<RestaurantCard> {
           restaurantId: widget.restaurant.idRestaurante!,
           nombre: widget.restaurant.nombre,
           tipo: widget.restaurant.categoria,
-          calificacion: widget.restaurant.calificacionPromedio ?? 0.0,
-          reviews: widget.restaurant.numeroReviews ?? 0,
+          calificacion: _averageRating,
+          reviews: _totalReviews,
           ubicacion: widget.restaurant.direccion,
           foto: widget.restaurant.menuUrl.isNotEmpty
               ? widget.restaurant.menuUrl
@@ -148,9 +182,7 @@ class _RestaurantCardState extends State<RestaurantCard> {
     return Consumer<FavoriteProvider>(
       builder: (context, favoriteProvider, child) {
         final restaurantId = widget.restaurant.idRestaurante;
-        final isFavorite = restaurantId != null 
-            ? favoriteProvider.isFavorite(restaurantId)
-            : false;
+        final isFavorite = restaurantId != null ? favoriteProvider.isFavorite(restaurantId) : false;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 16),
@@ -205,7 +237,6 @@ class _RestaurantCardState extends State<RestaurantCard> {
             ),
           ),
         ),
-        // Badge "Abierto ahora"
         if (widget.restaurant.isOpenNow)
           Positioned(
             top: 12,
@@ -237,7 +268,6 @@ class _RestaurantCardState extends State<RestaurantCard> {
               ),
             ),
           ),
-        // Botón de favorito
         Positioned(
           top: 12,
           right: 12,
@@ -284,7 +314,6 @@ class _RestaurantCardState extends State<RestaurantCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Nombre del restaurante
           Text(
             widget.restaurant.nombre,
             style: const TextStyle(
@@ -297,7 +326,6 @@ class _RestaurantCardState extends State<RestaurantCard> {
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 8),
-          // Tipo de comida y calificación en la misma línea
           Row(
             children: [
               Expanded(
@@ -315,7 +343,6 @@ class _RestaurantCardState extends State<RestaurantCard> {
             ],
           ),
           const SizedBox(height: 4),
-          // Precio promedio
           Text(
             '\$${widget.restaurant.precioPromedio.toStringAsFixed(0)} MXN promedio',
             style: TextStyle(
@@ -325,16 +352,15 @@ class _RestaurantCardState extends State<RestaurantCard> {
             ),
           ),
           const SizedBox(height: 12),
-          // Ubicación
           _buildLocationRow(),
           const SizedBox(height: 16),
-          // Botón Ver Restaurante
           _buildVerRestauranteButton(context, isFavorite),
         ],
       ),
     );
   }
 
+  /// *** AQUI ESTA EL CAMBIO — SIN LOADING, SOLO EL PROMEDIO ***
   Widget _buildRating() {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -346,7 +372,7 @@ class _RestaurantCardState extends State<RestaurantCard> {
         ),
         const SizedBox(width: 4),
         Text(
-          '${widget.restaurant.calificacionPromedio ?? 0.0}',
+          _averageRating.toStringAsFixed(1),
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -355,7 +381,7 @@ class _RestaurantCardState extends State<RestaurantCard> {
         ),
         const SizedBox(width: 4),
         Text(
-          '(${widget.restaurant.numeroReviews ?? 0})',
+          '($_totalReviews)',
           style: TextStyle(
             fontSize: 14,
             color: Colors.grey[600],

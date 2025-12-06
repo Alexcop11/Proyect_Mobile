@@ -3,11 +3,11 @@ import 'package:provider/provider.dart';
 import 'package:rating_app/core/providers/auth_provider.dart';
 import 'package:rating_app/core/providers/restaurant_provider.dart';
 import 'package:rating_app/screens/edit_restaurant.dart';
-import 'package:rating_app/screens/edit_profile_screen.dart';
 import 'package:rating_app/screens/login_screen.dart';
 import 'package:rating_app/screens/register_restaurant.dart';
 import 'package:rating_app/widgets/client/profile_info_card.dart';
 import 'package:rating_app/widgets/client/profile_option_card.dart';
+import 'package:rating_app/widgets/client/edit_profile_form.dart';
 import 'package:rating_app/widgets/client/edit_security_form.dart';
 import 'package:rating_app/screens/auth_wrapper.dart';
 import 'package:rating_app/widgets/common/app_bar_custom.dart';
@@ -34,28 +34,40 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
+    
+    setState(() => _isLoading = true);
+    
     try {
       final authProvider = context.read<AuthProvider>();
       final restaurantProvider = context.read<RestaurantProvider>();
 
+      debugPrint('🔄 Cargando datos de configuración...');
+
       // Cargar usuario si no está cargado
       if (authProvider.currentUser == null) {
+        debugPrint('👤 Cargando usuario...');
         await authProvider.loadCurrentUser();
       }
 
       // Cargar restaurante del propietario
       if (authProvider.email != null) {
+        debugPrint('🏪 Cargando restaurante para: ${authProvider.email}');
         await restaurantProvider.loadOwnerRestaurant(authProvider.email!);
       }
 
       if (mounted) {
         setState(() => _isLoading = false);
+        debugPrint('✅ Datos cargados correctamente');
       }
     } catch (e) {
       debugPrint('❌ Error cargando datos: $e');
       if (mounted) {
         setState(() => _isLoading = false);
-        _showError('Error al cargar datos: ${e.toString()}');
+        // No mostrar error si es problema de red
+        if (!e.toString().contains('Error de red')) {
+          _showError('Error al cargar datos: ${e.toString()}');
+        }
       }
     }
   }
@@ -64,6 +76,55 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
     setState(() {
       _expandedSection = _expandedSection == section ? null : section;
     });
+  }
+
+  Future<void> _guardarCambiosPerfil(String nombre, String correo, String telefono, String apellido) async {
+    if (_isSaving) return;
+
+    setState(() => _isSaving = true);
+
+    try {
+      final authProvider = context.read<AuthProvider>();
+      
+      // Extraer nombre del nombre completo si viene todo junto
+      final partes = nombre.trim().split(' ');
+      final nombreSolo = partes.isNotEmpty ? partes[0] : nombre;
+      
+      final success = await authProvider.updateProfile(
+        nombre: nombreSolo,
+        apellido: apellido,
+        email: correo,
+        telefono: telefono,
+      );
+
+      if (!mounted) return;
+
+      setState(() => _isSaving = false);
+
+      if (success) {
+        setState(() {
+          _expandedSection = null; // Colapsar el formulario
+        });
+
+        // Recargar el usuario actualizado
+        await authProvider.loadCurrentUser();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Perfil actualizado correctamente'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else {
+        _showError(authProvider.errorMessage ?? 'No se pudo actualizar el perfil');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      _showError('Error al actualizar: ${e.toString()}');
+      debugPrint('❌ Error actualizando perfil: $e');
+    }
   }
 
   Future<void> _guardarCambiosSeguridad(String currentPassword, String newPassword) async {
@@ -81,7 +142,7 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
 
       if (success) {
         setState(() {
-          _expandedSection = null; // Colapsar el formulario
+          _expandedSection = null;
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -171,17 +232,24 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
         if (!authProvider.isAuthenticated) return const LoginScreen();
 
         // Mostrar loading mientras carga
-        if (_isLoading || restaurantProvider.isLoading) {
+        if (_isLoading) {
           return Scaffold(
             backgroundColor: Colors.white,
             appBar: AppBarCustom(
-            title: 'ss',
-            onNotificationTap: () {
-              debugPrint('Notificaciones tapped');
-            },
-          ),
+              title: 'Configuración',
+            ),
             body: const Center(
-              child: CircularProgressIndicator(color: Colors.redAccent),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: Colors.redAccent),
+                  SizedBox(height: 16),
+                  Text(
+                    'Cargando configuración...',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
             ),
           );
         }
@@ -217,6 +285,7 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
           ),
           body: RefreshIndicator(
             onRefresh: _loadData,
+            color: Colors.redAccent,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               child: Padding(
@@ -224,7 +293,7 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Card de Información del Usuario
+                    // Sección de Información del Usuario
                     _buildUserInfoSection(authProvider),
 
                     const SizedBox(height: 16),
@@ -234,7 +303,7 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
 
                     const SizedBox(height: 16),
 
-                    // Sección de Seguridad y Configuración
+                    // Sección de Seguridad
                     _buildSecuritySection(),
 
                     const SizedBox(height: 24),
@@ -268,77 +337,92 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
   }
 
   Widget _buildUserInfoSection(AuthProvider authProvider) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Encabezado con botón de editar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Información del Usuario',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A1A1A),
-                  ),
+    final currentUser = authProvider.currentUser;
+    
+    return Column(
+      children: [
+        // Si NO está expandido, mostrar la card de información + botón editar
+        if (_expandedSection != 'editar_perfil') ...[
+          Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.redAccent),
-                  onPressed: () async {
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => EditProfileScreen(
-                          idUsuario: authProvider.currentUser?.idUsuario ?? 0,
-                          nombre: authProvider.currentUser?.nombre,
-                          apellido: authProvider.currentUser?.apellido,
-                          email: authProvider.currentUser?.email,
-                          telefono: authProvider.currentUser?.telefono,
+              ],
+            ),
+            child: Column(
+              children: [
+                // Encabezado con título
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Información del Usuario',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1A1A1A),
                         ),
                       ),
-                    );
+                    ],
+                  ),
+                ),
 
-                    if (result == true) {
-                      await authProvider.loadCurrentUser();
-                    }
+                // ProfileInfoCard
+                ProfileInfoCard(
+                  icon: Icons.person_outline,
+                  iconColor: const Color(0xFF4FC3F7),
+                  iconBgColor: const Color(0xFFE3F2FD),
+                  title: 'Detalles del Propietario',
+                  details: {
+                    'Nombre Completo:':
+                        currentUser?.nombreCompleto ?? 'No disponible',
+                    'Correo Electrónico:':
+                        currentUser?.email ?? 'No disponible',
+                    'Teléfono:':
+                        currentUser?.telefono ?? 'No disponible',
                   },
                 ),
               ],
             ),
           ),
-
-          // ProfileInfoCard
-          ProfileInfoCard(
-            icon: Icons.person_outline,
-            iconColor: const Color(0xFF4FC3F7),
-            iconBgColor: const Color(0xFFE3F2FD),
-            title: 'Detalles del Propietario',
-            details: {
-              'Nombre Completo:':
-                  authProvider.currentUser?.nombreCompleto ?? 'No disponible',
-              'Correo Electrónico:':
-                  authProvider.currentUser?.email ?? 'No disponible',
-              'Teléfono:':
-                  authProvider.currentUser?.telefono ?? 'No disponible',
-            },
+          
+          // Botón para editar perfil
+          ProfileOptionCard(
+            icon: Icons.edit,
+            iconColor: const Color(0xFFFFA726),
+            iconBgColor: const Color(0xFFFFF3E0),
+            title: 'Editar Perfil',
+            subtitle: 'Actualiza tu información personal',
+            trailing: Icon(
+              Icons.chevron_right,
+              color: Colors.grey[400],
+              size: 20,
+            ),
+            onTap: () => _toggleSection('editar_perfil'),
           ),
         ],
-      ),
+
+        // Si está expandido, mostrar el formulario de edición
+        if (_expandedSection == 'editar_perfil' && currentUser != null)
+          EditProfileForm(
+            nombreCompleto: currentUser.nombreCompleto,
+            correoElectronico: currentUser.email,
+            telefono: currentUser.telefono ?? '',
+            apellido: currentUser.apellido ?? '',
+            onSave: _guardarCambiosPerfil,
+            onCancel: () => setState(() => _expandedSection = null),
+            isSaving: _isSaving,
+          ),
+      ],
     );
   }
 
@@ -362,7 +446,6 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
       ),
       child: Column(
         children: [
-          // Encabezado con botón de editar
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
             child: Row(
@@ -388,7 +471,7 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
                       ),
                     );
 
-                    if (result == true && authProvider.email != null) {
+                    if (result == true && mounted && authProvider.email != null) {
                       final restaurantProvider = context.read<RestaurantProvider>();
                       await restaurantProvider.loadOwnerRestaurant(
                         authProvider.email!,
@@ -399,8 +482,6 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
               ],
             ),
           ),
-
-          // Información Básica
           ProfileInfoCard(
             icon: Icons.restaurant_menu,
             iconColor: const Color(0xFFFF6B6B),
@@ -412,8 +493,6 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
               'Categoría:': restaurant.categoria ?? 'No disponible',
             },
           ),
-
-          // Ubicación
           ProfileInfoCard(
             icon: Icons.location_on,
             iconColor: const Color(0xFFFFA726),
@@ -423,8 +502,6 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
               'Dirección:': restaurant.direccion ?? 'No disponible',
             },
           ),
-
-          // Horarios
           ProfileInfoCard(
             icon: Icons.access_time,
             iconColor: const Color(0xFF66BB6A),
@@ -435,8 +512,6 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
               'Cierre:': restaurant.horarioCierre ?? 'No disponible',
             },
           ),
-
-          // Contacto y Precios
           ProfileInfoCard(
             icon: Icons.phone,
             iconColor: const Color(0xFF42A5F5),
@@ -445,7 +520,7 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
             details: {
               'Teléfono:': restaurant.telefono ?? 'No disponible',
               'Precio Promedio:':
-                  '\$${restaurant.precioPromedio?.toString() ?? '0.00'}',
+                  '\$${restaurant.precioPromedio?.toStringAsFixed(2) ?? '0.00'}',
             },
           ),
         ],
@@ -456,7 +531,6 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
   Widget _buildSecuritySection() {
     return Column(
       children: [
-        // BOTÓN "CAMBIAR CONTRASEÑA"
         if (_expandedSection != 'seguridad')
           ProfileOptionCard(
             icon: Icons.lock,
@@ -471,8 +545,6 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
             ),
             onTap: () => _toggleSection('seguridad'),
           ),
-
-        // FORMULARIO DE SEGURIDAD
         if (_expandedSection == 'seguridad')
           EditSecurityForm(
             onSave: _guardarCambiosSeguridad,

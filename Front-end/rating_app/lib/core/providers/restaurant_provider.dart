@@ -150,40 +150,43 @@ class RestaurantProvider with ChangeNotifier {
     }
   }
 
-  /// Cargar estadísticas del restaurante (favoritos, reseñas, calificación)
-  Future<void> _loadRestaurantStats(int idRestaurante) async {
-    try {
-      debugPrint('📊 Cargando estadísticas del restaurante ID: $idRestaurante');
-      
-      // Cargar favoritos
-      _favoritesCount = await _restaurantService.getFavoritesCount(idRestaurante);
-      
-      // Cargar reseñas
-      _reviews = await _restaurantService.getReviews(idRestaurante);
-      _totalReviews = _reviews.length;
-      
-      // Calcular calificación promedio
-      if (_reviews.isNotEmpty) {
-        double totalRating = 0;
-        for (var review in _reviews) {
-          final comida = review.puntuacionComida ?? 0;
-          final servicio = review.puntuacionServicio ?? 0;
-          final ambiente = review.puntuacionAmbiente ?? 0;
-          totalRating += (comida + servicio + ambiente) / 3;
-        }
-        _averageRating = totalRating / _reviews.length;
-      } else {
-        _averageRating = 0.0;
+/// Cargar estadísticas del restaurante (favoritos, reseñas, calificación)
+Future<void> _loadRestaurantStats(int idRestaurante) async {
+  try {
+    debugPrint('📊 Cargando estadísticas del restaurante ID: $idRestaurante');
+    
+    // Cargar favoritos
+    _favoritesCount = await _restaurantService.getFavoritesCount(idRestaurante);
+    
+    // Cargar reseñas
+    _reviews = await _restaurantService.getReviews(idRestaurante);
+    _totalReviews = _reviews.length;
+    
+    // Calcular calificación promedio
+    if (_reviews.isNotEmpty) {
+      double totalRating = 0;
+      for (var review in _reviews) {
+        final comida = review.puntuacionComida ?? 0;
+        final servicio = review.puntuacionServicio ?? 0;
+        final ambiente = review.puntuacionAmbiente ?? 0;
+        totalRating += (comida + servicio + ambiente) / 3;
       }
-      
-      debugPrint('✅ Stats: $_favoritesCount favoritos, $_totalReviews reseñas, $_averageRating★');
-      
-    } catch (e) {
-      debugPrint('⚠️ Error cargando stats: $e');
-      _resetStats();
+      _averageRating = totalRating / _reviews.length;
+    } else {
+      _averageRating = 0.0;
     }
+    
+    debugPrint('✅ Stats: $_favoritesCount favoritos, $_totalReviews reseñas, $_averageRating★');
+    
+    // ✅ ESTO ES LO QUE FALTABA - Notificar a los listeners
+    notifyListeners();
+    
+  } catch (e) {
+    debugPrint('⚠️ Error cargando stats: $e');
+    _resetStats();
+    notifyListeners(); // También notificar en caso de error
   }
-
+}
   /// Resetear estadísticas
   void _resetStats() {
     _favoritesCount = 0;
@@ -581,4 +584,89 @@ class RestaurantProvider with ChangeNotifier {
       return null;
     }
   }
+  // Agregar este método en la clase RestaurantProvider
+
+/// Calcular el promedio de calificación de un restaurante
+/// Retorna un mapa con el promedio general y los promedios por categoría
+Future<Map<String, dynamic>> calculateRestaurantRating(int idRestaurante) async {
+  try {
+    debugPrint('📊 Calculando promedio de calificación para restaurante $idRestaurante');
+    
+    // Obtener todas las reseñas del restaurante
+    final reviews = await _restaurantService.getReviews(idRestaurante);
+    
+    if (reviews.isEmpty) {
+      debugPrint('ℹ️ No hay reseñas para calcular promedio');
+      return {
+        'averageRating': 0.0,
+        'averageComida': 0.0,
+        'averageServicio': 0.0,
+        'averageAmbiente': 0.0,
+        'totalReviews': 0,
+      };
+    }
+    
+    // Variables para acumular las puntuaciones
+    double totalComida = 0;
+    double totalServicio = 0;
+    double totalAmbiente = 0;
+    double totalGeneral = 0;
+    int validReviews = 0;
+    
+    // Sumar todas las puntuaciones
+    for (var review in reviews) {
+      final comida = (review.puntuacionComida ?? 0).toDouble();
+      final servicio = (review.puntuacionServicio ?? 0).toDouble();
+      final ambiente = (review.puntuacionAmbiente ?? 0).toDouble();
+      
+      // Solo contar reseñas con al menos una puntuación válida
+      if (comida > 0 || servicio > 0 || ambiente > 0) {
+        totalComida += comida;
+        totalServicio += servicio;
+        totalAmbiente += ambiente;
+        
+        // Promedio de esta reseña individual
+        final promedioReview = (comida + servicio + ambiente) / 3;
+        totalGeneral += promedioReview;
+        
+        validReviews++;
+      }
+    }
+    
+    // Calcular promedios
+    final averageRating = validReviews > 0 ? totalGeneral / validReviews : 0.0;
+    final averageComida = validReviews > 0 ? totalComida / validReviews : 0.0;
+    final averageServicio = validReviews > 0 ? totalServicio / validReviews : 0.0;
+    final averageAmbiente = validReviews > 0 ? totalAmbiente / validReviews : 0.0;
+    
+    debugPrint('✅ Promedio calculado: ${averageRating.toStringAsFixed(1)}★ ($validReviews reseñas)');
+    
+    return {
+      'averageRating': double.parse(averageRating.toStringAsFixed(1)),
+      'averageComida': double.parse(averageComida.toStringAsFixed(1)),
+      'averageServicio': double.parse(averageServicio.toStringAsFixed(1)),
+      'averageAmbiente': double.parse(averageAmbiente.toStringAsFixed(1)),
+      'totalReviews': validReviews,
+    };
+  } catch (e) {
+    debugPrint('❌ Error calculando promedio: $e');
+    return {
+      'averageRating': 0.0,
+      'averageComida': 0.0,
+      'averageServicio': 0.0,
+      'averageAmbiente': 0.0,
+      'totalReviews': 0,
+    };
+  }
+}
+
+/// Obtener el promedio de calificación de forma síncrona si ya está cargado
+double getLoadedAverageRating() {
+  return _averageRating;
+}
+
+/// Obtener el total de reseñas de forma síncrona si ya está cargado
+int getLoadedTotalReviews() {
+  return _totalReviews;
+}
   }

@@ -38,47 +38,7 @@ class InformationTab extends StatelessWidget {
               height: 1.5,
             ),
           ),
-          const SizedBox(height: 24),
-          _buildInfoRow(Icons.access_time, horario),
-          const SizedBox(height: 12),
-          _buildInfoRow(Icons.phone, phone),
-          const SizedBox(height: 24),
-          Container(
-            height: 200,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Center(
-              child: Icon(Icons.map, size: 64, color: Colors.grey),
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              onPressed: () {
-                // Implementar navegación
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF6B6B),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 0,
-              ),
-              child: const Text(
-                'Como llegar',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
+          
         ],
       ),
     );
