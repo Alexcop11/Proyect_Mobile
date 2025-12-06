@@ -14,7 +14,6 @@ class ExploreScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          // Puedes agregar filtros o búsqueda aquí
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.white,
