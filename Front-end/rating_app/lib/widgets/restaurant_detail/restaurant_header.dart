@@ -102,7 +102,7 @@ class RestaurantHeader extends StatelessWidget {
     );
   }
 
-  /// Placeholder cuando no hay imagen o hay error
+/// Placeholder cuando no hay imagen o hay error
   Widget _buildPlaceholder({bool showError = false}) {
     return Container(
       color: Colors.grey[300],
