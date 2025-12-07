@@ -13,15 +13,15 @@ import 'package:rating_app/screens/auth_wrapper.dart';
 import 'package:rating_app/widgets/common/app_bar_custom.dart';
 import 'package:rating_app/widgets/restaurant_photo_section.dart';
 
-class Restaurant_manage_Screen extends StatefulWidget {
-  const Restaurant_manage_Screen({super.key});
+class RestaurantManageScreen extends StatefulWidget {
+  const RestaurantManageScreen({super.key});
 
   @override
-  State<Restaurant_manage_Screen> createState() =>
-      _Restaurant_manage_ScreenState();
+  State<RestaurantManageScreen> createState() =>
+      _RestaurantManageScreenState();
 }
 
-class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
+class _RestaurantManageScreenState extends State<RestaurantManageScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   String? _expandedSection;
@@ -34,15 +34,20 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
     });
   }
 
-  Future<void> _loadData() async {
+Future<void> _loadData() async {
     if (!mounted) return;
     
-    setState(() => _isLoading = true);
+    final authProvider = context.read<AuthProvider>();
+    final restaurantProvider = context.read<RestaurantProvider>();
+
+    // Si ya tenemos los datos del restaurante, no mostrar loading
+    final hasRestaurantData = restaurantProvider.ownerRestaurant != null;
+    
+    if (!hasRestaurantData) {
+      setState(() => _isLoading = true);
+    }
     
     try {
-      final authProvider = context.read<AuthProvider>();
-      final restaurantProvider = context.read<RestaurantProvider>();
-
       debugPrint('🔄 Cargando datos de configuración...');
 
       // Cargar usuario si no está cargado
@@ -51,10 +56,10 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
         await authProvider.loadCurrentUser();
       }
 
-      // Cargar restaurante del propietario
-      if (authProvider.email != null) {
-        debugPrint('🏪 Cargando restaurante para: ${authProvider.email}');
-        await restaurantProvider.loadOwnerRestaurant(authProvider.email!);
+      // Cargar restaurante del propietario solo si no existe
+      if (authProvider.email != null && restaurantProvider.ownerRestaurant == null) {
+        debugPrint('🏪 Cargando restaurante del propietario...');
+        await restaurantProvider.loadOwnerRestaurant(authProvider.email!, authProvider);
       }
 
       if (mounted) {
@@ -72,7 +77,7 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
       }
     }
   }
-
+  
   void _toggleSection(String section) {
     setState(() {
       _expandedSection = _expandedSection == section ? null : section;
@@ -481,7 +486,7 @@ class _Restaurant_manage_ScreenState extends State<Restaurant_manage_Screen> {
                     if (result == true && mounted && authProvider.email != null) {
                       final restaurantProvider = context.read<RestaurantProvider>();
                       await restaurantProvider.loadOwnerRestaurant(
-                        authProvider.email!,
+                        authProvider.email!,authProvider
                       );
                     }
                   },

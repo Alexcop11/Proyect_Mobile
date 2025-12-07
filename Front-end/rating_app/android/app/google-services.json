@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "824584844909",
+    "project_id": "waos-a962e",
+    "storage_bucket": "waos-a962e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:824584844909:android:9667937567426cd2a83164",
+        "android_client_info": {
+          "package_name": "com.example.rating_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCbxdnM7cyYIjRibapxAemwjtgGo_C6FKc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

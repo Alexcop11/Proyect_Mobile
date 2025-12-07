@@ -21,12 +21,16 @@ class _EditRestaurantScreenState extends State<EditRestaurantScreen> {
   late TextEditingController descripcionController;
   late TextEditingController direccionController;
   late TextEditingController telefonoController;
-  late TextEditingController horarioAperturaController;
-  late TextEditingController horarioCierreController;
   late TextEditingController precioPromedioController;
   late TextEditingController menuUrlController;
 
+  // TimeOfDay para los horarios
+  TimeOfDay? horarioApertura;
+  TimeOfDay? horarioCierre;
+
   String? selectedCategoria;
+  String? horarioAperturaError;
+  String? horarioCierreError;
 
   // Lista completa de categorías
   final List<String> categorias = [
@@ -61,8 +65,6 @@ class _EditRestaurantScreenState extends State<EditRestaurantScreen> {
     descripcionController = TextEditingController(text: data['descripcion'] ?? '');
     direccionController = TextEditingController(text: data['direccion'] ?? '');
     telefonoController = TextEditingController(text: data['telefono'] ?? '');
-    horarioAperturaController = TextEditingController(text: data['horarioApertura'] ?? '');
-    horarioCierreController = TextEditingController(text: data['horarioCierre'] ?? '');
     precioPromedioController = TextEditingController(text: data['precioPromedio']?.toString() ?? '');
     menuUrlController = TextEditingController(text: data['menuUrl'] ?? data['menuURL'] ?? '');
     
@@ -70,7 +72,186 @@ class _EditRestaurantScreenState extends State<EditRestaurantScreen> {
     final categoria = data['categoria'] ?? '';
     selectedCategoria = categorias.contains(categoria) ? categoria : 'Otro';
     
+    // Cargar horarios existentes
+    _loadExistingHorarios(data);
+    
     debugPrint('📝 Categoría cargada: $selectedCategoria');
+  }
+
+  void _loadExistingHorarios(Map<String, dynamic> data) {
+    // Cargar horario de apertura
+    final aperturaStr = data['horarioApertura'] ?? '';
+    debugPrint('📅 Cargando horario apertura: "$aperturaStr"');
+    if (aperturaStr.isNotEmpty) {
+      horarioApertura = _parseTimeString(aperturaStr);
+      debugPrint('✅ Horario apertura parseado: ${horarioApertura != null ? _timeOfDayToString(horarioApertura!) : "NULL"}');
+    }
+
+    // Cargar horario de cierre
+    final cierreStr = data['horarioCierre'] ?? '';
+    debugPrint('📅 Cargando horario cierre: "$cierreStr"');
+    if (cierreStr.isNotEmpty) {
+      horarioCierre = _parseTimeString(cierreStr);
+      debugPrint('✅ Horario cierre parseado: ${horarioCierre != null ? _timeOfDayToString(horarioCierre!) : "NULL"}');
+    }
+  }
+
+  // Convertir String (HH:mm o HH:mm AM/PM) a TimeOfDay
+  TimeOfDay? _parseTimeString(String timeStr) {
+    try {
+      // Limpiar el string
+      timeStr = timeStr.trim();
+      debugPrint('🔍 Parseando: "$timeStr"');
+      
+      // Verificar si tiene formato AM/PM
+      bool hasAMPM = timeStr.toUpperCase().contains('AM') || timeStr.toUpperCase().contains('PM');
+      bool isPM = timeStr.toUpperCase().contains('PM');
+      
+      // Remover AM/PM para procesar
+      String cleanTime = timeStr.replaceAll(RegExp(r'\s*(AM|PM|am|pm)\s*'), '').trim();
+      
+      // Dividir por ":"
+      final parts = cleanTime.split(':');
+      if (parts.length >= 2) {
+        int? hour = int.tryParse(parts[0].trim());
+        int? minute = int.tryParse(parts[1].trim());
+        
+        if (hour != null && minute != null) {
+          // Si tiene formato AM/PM, convertir a formato 24 horas
+          if (hasAMPM) {
+            if (isPM && hour != 12) {
+              hour += 12;
+            } else if (!isPM && hour == 12) {
+              hour = 0;
+            }
+          }
+          
+          // Validar rangos
+          if (hour >= 0 && hour < 24 && minute >= 0 && minute < 60) {
+            debugPrint('✅ Hora parseada correctamente: $hour:$minute');
+            return TimeOfDay(hour: hour, minute: minute);
+          } else {
+            debugPrint('❌ Hora fuera de rango: hour=$hour, minute=$minute');
+          }
+        } else {
+          debugPrint('❌ No se pudo parsear hour o minute');
+        }
+      } else {
+        debugPrint('❌ Formato incorrecto, parts: $parts');
+      }
+    } catch (e) {
+      debugPrint('❌ Error parsing time: $e');
+    }
+    return null;
+  }
+
+  // Convertir TimeOfDay a String formato HH:mm
+  String _timeOfDayToString(TimeOfDay time) {
+    final hour = time.hour.toString().padLeft(2, '0');
+    final minute = time.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
+  // Selector de hora de apertura
+  Future<void> _selectHorarioApertura() async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: horarioApertura ?? const TimeOfDay(hour: 9, minute: 0),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Colors.redAccent,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        horarioApertura = picked;
+        horarioAperturaError = null;
+      });
+      _validateHorarios();
+    }
+  }
+
+  // Selector de hora de cierre
+  Future<void> _selectHorarioCierre() async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: horarioCierre ?? const TimeOfDay(hour: 22, minute: 0),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Colors.redAccent,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        horarioCierre = picked;
+        horarioCierreError = null;
+      });
+      _validateHorarios();
+    }
+  }
+
+  // Validación de horarios
+  void _validateHorarios() {
+    setState(() {
+      // Validar que ambos horarios existan
+      if (horarioApertura == null) {
+        horarioAperturaError = 'Seleccione un horario de apertura';
+        return;
+      } else {
+        horarioAperturaError = null;
+      }
+
+      if (horarioCierre == null) {
+        horarioCierreError = 'Seleccione un horario de cierre';
+        return;
+      } else {
+        horarioCierreError = null;
+      }
+
+      // Validar que no sean la misma hora
+      if (horarioApertura!.hour == horarioCierre!.hour &&
+          horarioApertura!.minute == horarioCierre!.minute) {
+        horarioCierreError = 'El horario de cierre debe ser diferente al de apertura';
+        return;
+      }
+
+      // Convertir a minutos desde medianoche para comparar
+      final aperturaMinutos = horarioApertura!.hour * 60 + horarioApertura!.minute;
+      final cierreMinutos = horarioCierre!.hour * 60 + horarioCierre!.minute;
+
+      // Validar que el horario de cierre sea después del de apertura
+      if (cierreMinutos <= aperturaMinutos) {
+        // Si el cierre es menor, asumimos que cruza medianoche
+        final duracion = (24 * 60 - aperturaMinutos) + cierreMinutos;
+        if (duracion < 120) { // Menos de 2 horas
+          horarioCierreError = 'El restaurante debe estar abierto al menos 2 horas';
+        } else {
+          horarioCierreError = null;
+        }
+      } else {
+        // No cruza medianoche, validar duración mínima
+        final duracion = cierreMinutos - aperturaMinutos;
+        if (duracion < 120) { // Menos de 2 horas
+          horarioCierreError = 'El restaurante debe estar abierto al menos 2 horas';
+        } else {
+          horarioCierreError = null;
+        }
+      }
+    });
   }
 
   @override
@@ -79,8 +260,6 @@ class _EditRestaurantScreenState extends State<EditRestaurantScreen> {
     descripcionController.dispose();
     direccionController.dispose();
     telefonoController.dispose();
-    horarioAperturaController.dispose();
-    horarioCierreController.dispose();
     precioPromedioController.dispose();
     menuUrlController.dispose();
     super.dispose();
@@ -92,6 +271,37 @@ class _EditRestaurantScreenState extends State<EditRestaurantScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("❌ Por favor completa todos los campos requeridos"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Validar horarios
+    if (horarioApertura == null || horarioCierre == null) {
+      setState(() {
+        if (horarioApertura == null) {
+          horarioAperturaError = 'Seleccione un horario de apertura';
+        }
+        if (horarioCierre == null) {
+          horarioCierreError = 'Seleccione un horario de cierre';
+        }
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("❌ Por favor selecciona los horarios de apertura y cierre"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    _validateHorarios();
+    if (horarioAperturaError != null || horarioCierreError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("❌ Corrige los errores en los horarios"),
           backgroundColor: Colors.red,
         ),
       );
@@ -124,8 +334,8 @@ class _EditRestaurantScreenState extends State<EditRestaurantScreen> {
       latitud: widget.restaurantData['latitud']?.toDouble() ?? 0.0,
       longitud: widget.restaurantData['longitud']?.toDouble() ?? 0.0,
       telefono: telefonoController.text.trim(),
-      horarioApertura: horarioAperturaController.text.trim(),
-      horarioCierre: horarioCierreController.text.trim(),
+      horarioApertura: _timeOfDayToString(horarioApertura!),
+      horarioCierre: _timeOfDayToString(horarioCierre!),
       precioPromedio: double.tryParse(precioPromedioController.text) ?? 0.0,
       categoria: selectedCategoria ?? 'Otro',
       menuUrl: menuUrlController.text.trim(),
@@ -157,10 +367,11 @@ class _EditRestaurantScreenState extends State<EditRestaurantScreen> {
     }
   }
 
-  InputDecoration _styledDecoration(String label, IconData icon, {String? hint}) {
+  InputDecoration _styledDecoration(String label, IconData icon, {String? hint, String? errorText}) {
     return InputDecoration(
       labelText: label,
       hintText: hint,
+      errorText: errorText,
       labelStyle: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600),
       prefixIcon: Icon(icon, color: Colors.redAccent),
       border: OutlineInputBorder(
@@ -206,6 +417,41 @@ class _EditRestaurantScreenState extends State<EditRestaurantScreen> {
         keyboardType: keyboardType,
         inputFormatters: inputFormatters,
         autovalidateMode: AutovalidateMode.onUserInteraction,
+      ),
+    );
+  }
+
+  Widget _buildTimePickerField({
+    required String label,
+    required IconData icon,
+    required TimeOfDay? selectedTime,
+    required VoidCallback onTap,
+    required String? errorText,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: InkWell(
+        onTap: onTap,
+        child: InputDecorator(
+          decoration: _styledDecoration(label, icon, errorText: errorText),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                selectedTime != null
+                    ? _timeOfDayToString(selectedTime)
+                    : 'Seleccionar hora',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: selectedTime != null
+                      ? Colors.black
+                      : Colors.grey[600],
+                ),
+              ),
+              const Icon(Icons.access_time, color: Colors.redAccent),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -339,29 +585,19 @@ class _EditRestaurantScreenState extends State<EditRestaurantScreen> {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-                  _buildStyledField(
-                    horarioAperturaController,
-                    "Abre a",
-                    Icons.access_time,
-                    hint: "Ej: 09:00 AM",
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'El horario de apertura es requerido';
-                      }
-                      return null;
-                    },
+                  _buildTimePickerField(
+                    label: "Abre a",
+                    icon: Icons.access_time,
+                    selectedTime: horarioApertura,
+                    onTap: _selectHorarioApertura,
+                    errorText: horarioAperturaError,
                   ),
-                  _buildStyledField(
-                    horarioCierreController,
-                    "Cierra a",
-                    Icons.access_time,
-                    hint: "Ej: 10:00 PM",
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'El horario de cierre es requerido';
-                      }
-                      return null;
-                    },
+                  _buildTimePickerField(
+                    label: "Cierra a",
+                    icon: Icons.access_time,
+                    selectedTime: horarioCierre,
+                    onTap: _selectHorarioCierre,
+                    errorText: horarioCierreError,
                   ),
                   const Padding(
                     padding: EdgeInsets.only(top: 4),

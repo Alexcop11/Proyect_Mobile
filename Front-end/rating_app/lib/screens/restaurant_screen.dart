@@ -18,24 +18,53 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final restaurantProvider = Provider.of<RestaurantProvider>(
-        context,
-        listen: false,
-      );
-
-      if (authProvider.email != null) {
-        restaurantProvider.loadOwnerRestaurant(authProvider.email!);
-      }
+      _loadRestaurantData();
     });
+  }
+
+  Future<void> _loadRestaurantData() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final restaurantProvider = Provider.of<RestaurantProvider>(
+      context,
+      listen: false,
+    );
+
+    if (authProvider.email != null) {
+      await restaurantProvider.loadOwnerRestaurant(
+        authProvider.email!,
+        authProvider,
+      );
+    }
+  }
+
+  Future<void> _handleRefresh() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final restaurantProvider = Provider.of<RestaurantProvider>(
+      context,
+      listen: false,
+    );
+
+    if (authProvider.email != null) {
+      await Future.wait([
+        restaurantProvider.loadOwnerRestaurant(
+          authProvider.email!,
+          authProvider,
+        ),
+        authProvider.initializeUserServices(),
+      ]);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Consumer2<AuthProvider, RestaurantProvider>(
       builder: (context, authProvider, restaurantProvider, child) {
-        if (!authProvider.isAuthenticated) return const LoginScreen();
+        // Verificar autenticación
+        if (!authProvider.isAuthenticated) {
+          return const LoginScreen();
+        }
 
+        // Estado de carga
         if (restaurantProvider.isLoading) {
           return const Scaffold(
             body: Center(
@@ -44,23 +73,33 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
           );
         }
 
+        // Estado de error
         if (restaurantProvider.errorMessage != null) {
           return Scaffold(
             body: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text("Error: ${restaurantProvider.errorMessage}"),
+                  const Icon(
+                    Icons.error_outline,
+                    size: 64,
+                    color: Colors.red,
+                  ),
                   const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {
-                      if (authProvider.email != null) {
-                        restaurantProvider.loadOwnerRestaurant(
-                          authProvider.email!,
-                        );
-                      }
-                    },
-                    child: const Text("Reintentar"),
+                  Text(
+                    "Error: ${restaurantProvider.errorMessage}",
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: _handleRefresh,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text("Reintentar"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.redAccent,
+                      foregroundColor: Colors.white,
+                    ),
                   ),
                 ],
               ),
@@ -68,27 +107,40 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
           );
         }
 
+        // Verificar si tiene restaurante
         final restaurant = restaurantProvider.ownerRestaurant;
         if (restaurant == null) {
-          return const Scaffold(
+          return Scaffold(
             body: Center(
-              child: Text("No tienes restaurante registrado"),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.restaurant,
+                    size: 64,
+                    color: Colors.grey,
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "No tienes restaurante registrado",
+                    style: TextStyle(fontSize: 18),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    "Registra tu restaurante para comenzar",
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                ],
+              ),
             ),
           );
         }
 
+        // Vista principal del restaurante
         return Scaffold(
-          appBar:  AppBarCustom(
-            title: 'FoodFinder',
-          ),
+          appBar: const AppBarCustom(title: 'FoodFinder'),
           body: RefreshIndicator(
-            onRefresh: () async {
-              if (authProvider.email != null) {
-                await restaurantProvider.loadOwnerRestaurant(
-                  authProvider.email!,
-                );
-              }
-            },
+            onRefresh: _handleRefresh,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               child: Padding(
@@ -101,38 +153,14 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       nombre: authProvider.currentUser?.nombre ?? 'Usuario',
                       restaurante: restaurant.nombre,
                     ),
-                    
+
                     const SizedBox(height: 16),
-                    
+
                     // Tarjetas de estadísticas
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildStatCard(
-                            icon: Icons.favorite_border,
-                            iconColor: const Color(0xFFFF6B6B),
-                            label: 'Agregado a favoritos',
-                            count: restaurantProvider.favoritesCount.toString(),
-                          ),
-                        ),
-                        Container(
-                          width: 1,
-                          height: 80,
-                          color: const Color(0xFFE0E0E0),
-                        ),
-                        Expanded(
-                          child: _buildStatCard(
-                            icon: Icons.star_border,
-                            iconColor: const Color(0xFFFFC107),
-                            label: 'Reseñas totales',
-                            count: restaurantProvider.totalReviews.toString(),
-                          ),
-                        ),
-                      ],
-                    ),
-                    
+                    _buildStatsRow(restaurantProvider),
+
                     const SizedBox(height: 24),
-                    
+
                     // Sección de valoración
                     const Text(
                       'VALORACIÓN',
@@ -143,20 +171,14 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         letterSpacing: 1.2,
                       ),
                     ),
-                    
+
                     const SizedBox(height: 16),
-                    
+
                     // Card de valoración
                     _buildRatingCard(
                       rating: restaurantProvider.averageRating,
                       totalReviews: restaurantProvider.totalReviews,
-                      onPressed: () {
-                        // Navegar a la pantalla de reseñas usando el navigation principal
-                        final navigationState = context.findAncestorStateOfType<State<MainRestaurantNavigation>>();
-                        if (navigationState != null) {
-                          (navigationState as dynamic).navigateToReviews();
-                        }
-                      },
+                      onPressed: _navigateToReviews,
                     ),
                   ],
                 ),
@@ -166,6 +188,44 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
         );
       },
     );
+  }
+
+  Widget _buildStatsRow(RestaurantProvider restaurantProvider) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildStatCard(
+            icon: Icons.favorite_border,
+            iconColor: const Color(0xFFFF6B6B),
+            label: 'Agregado a favoritos',
+            count: restaurantProvider.favoritesCount.toString(),
+          ),
+        ),
+        Container(
+          width: 1,
+          height: 80,
+          color: const Color(0xFFE0E0E0),
+        ),
+        Expanded(
+          child: _buildStatCard(
+            icon: Icons.star_border,
+            iconColor: const Color(0xFFFFC107),
+            label: 'Reseñas totales',
+            count: restaurantProvider.totalReviews.toString(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _navigateToReviews() {
+    final navigationState = context.findAncestorStateOfType<
+      State<MainRestaurantNavigation>
+    >();
+    
+    if (navigationState != null) {
+      (navigationState as dynamic).navigateToReviews();
+    }
   }
 
   Widget _buildGreetingCard({
@@ -231,11 +291,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       ),
       child: Column(
         children: [
-          Icon(
-            icon,
-            color: iconColor,
-            size: 24,
-          ),
+          Icon(icon, color: iconColor, size: 24),
           const SizedBox(height: 8),
           Text(
             count,
@@ -308,9 +364,9 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
               }
             }),
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Rating número
           Text(
             rating.toStringAsFixed(1),
@@ -320,9 +376,9 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
               color: Color(0xFF1A1A1A),
             ),
           ),
-          
+
           const SizedBox(height: 8),
-          
+
           // Texto de reseñas
           Text(
             'Basado en $totalReviews reseñas',
@@ -331,9 +387,9 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
               color: Color(0xFF666666),
             ),
           ),
-          
+
           const SizedBox(height: 20),
-          
+
           // Botón de ver reseñas
           SizedBox(
             width: double.infinity,

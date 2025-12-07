@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:rating_app/core/services/notification_services.dart';
 import 'package:rating_app/core/services/restaurant_service.dart';
 import 'package:rating_app/models/restaurant.dart';
 import 'package:rating_app/models/review.dart';
@@ -119,7 +120,7 @@ class RestaurantProvider with ChangeNotifier {
   }
 
   /// Obtener restaurante del propietario por email
-  Future<Restaurant?> loadOwnerRestaurant(String email) async {
+  Future<Restaurant?> loadOwnerRestaurant(String email, dynamic authProvider) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -128,7 +129,10 @@ class RestaurantProvider with ChangeNotifier {
       debugPrint('🔍 Buscando restaurante del propietario: $email');
       
       _ownerRestaurant = await _restaurantService.getRestaurantByOwnerEmail(email);
-      
+      await NotificationService().initialize();
+      await NotificationService().updatePushToken(
+        authProvider.currentUser!.idUsuario!,
+      );
       if (_ownerRestaurant != null) {
         debugPrint('✅ Restaurante encontrado: ${_ownerRestaurant!.nombre}');
         

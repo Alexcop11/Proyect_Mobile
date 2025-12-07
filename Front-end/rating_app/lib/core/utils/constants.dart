@@ -10,6 +10,10 @@ class Api_Constants {
   static const String favoritePoint = 'http://192.168.1.72:8000/api/favorites/';
   static const String ratingsPoint = 'http://192.168.1.72:8000/api/ratings/';
   static const String photosPoint = '/photos/';
+  static const String tokenNotification = 'http://192.168.1.72:8000/api/users/push-token';
+  static const String pushNotification = 'http://192.168.1.72:8000/api/notifications/send';
+  static const String notificationPoint = 'http://192.168.1.72:8000/api/notifications/';
+
   static const Duration timeout = Duration(seconds: 10);
 }
 

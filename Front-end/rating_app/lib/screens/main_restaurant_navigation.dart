@@ -54,7 +54,7 @@ class _MainRestaurantNavigationState extends State<MainRestaurantNavigation> {
 
       // Intentar cargar el restaurante
       debugPrint('📡 Intentando cargar restaurante para: ${authProvider.email}');
-      await restaurantProvider.loadOwnerRestaurant(authProvider.email!);
+      await restaurantProvider.loadOwnerRestaurant(authProvider.email!,authProvider);
 
       // Verificar si hubo error de red
       if (restaurantProvider.errorMessage != null && 
@@ -416,7 +416,7 @@ class _MainRestaurantNavigationState extends State<MainRestaurantNavigation> {
                   ? const RestaurantReviews()
                   : _buildBlockedScreen('Reseñas'),
               
-              const Restaurant_manage_Screen(),
+              const RestaurantManageScreen(),
             ],
           ),
         );

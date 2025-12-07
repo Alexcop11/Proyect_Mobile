@@ -25,7 +25,7 @@ class _RestaurantReviewsState extends State<RestaurantReviews> {
       );
 
       if (authProvider.email != null) {
-        restaurantProvider.loadOwnerRestaurant(authProvider.email!);
+        restaurantProvider.loadOwnerRestaurant(authProvider.email!,authProvider);
       }
     });
   }
@@ -142,7 +142,7 @@ class _RestaurantReviewsState extends State<RestaurantReviews> {
                       onRefresh: () async {
                         if (authProvider.email != null) {
                           await restaurantProvider.loadOwnerRestaurant(
-                            authProvider.email!,
+                            authProvider.email!,authProvider
                           );
                         }
                       },

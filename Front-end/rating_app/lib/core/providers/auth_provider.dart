@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:rating_app/core/services/auth_service.dart';
+import 'package:rating_app/core/services/notification_services.dart';
 import 'package:rating_app/core/services/user_service.dart';
 import 'package:rating_app/models/user.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,7 +9,7 @@ import 'dart:convert';
 class AuthProvider with ChangeNotifier {
   final AuthService _authService;
   final UserService _userService;
-  
+
   bool _isAuthenticated = false;
   bool _isLoading = true;
   String? _token;
@@ -32,11 +33,9 @@ class AuthProvider with ChangeNotifier {
   bool get isAuthenticated => _token != null && _token!.isNotEmpty;
   bool get isLoading => _isLoading;
 
-  AuthProvider(this._authService, this._userService) {
-    _initializeAuth();
-  }
+  AuthProvider(this._authService, this._userService);
 
-  Future<void> _initializeAuth() async {
+  Future<void> initializeAuth() async {
     try {
       final hasSession = await _authService.hasActiveSession();
 
@@ -150,16 +149,23 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  Future<void> initializeUserServices() async {
+    if (currentUser == null) return;
+
+    await NotificationService().initialize();
+    await NotificationService().updatePushToken(currentUser!.idUsuario!);
+  }
+
   Future<void> loadCurrentUser() async {
     try {
       final email = await _authService.getUserEmail();
       debugPrint('📧 Email recuperado: $email');
-      
+
       if (email != null && email.isNotEmpty) {
         debugPrint('🔄 Cargando datos del usuario desde el servidor...');
-        
+
         _currentUser = await _userService.getUserByEmail(email);
-        
+
         if (_currentUser != null) {
           debugPrint('✅ Usuario cargado: ${_currentUser!.nombre}');
           _nombre = _currentUser!.nombre;
@@ -183,7 +189,7 @@ class AuthProvider with ChangeNotifier {
     } on Exception catch (e) {
       debugPrint('❌ Error cargando usuario: $e');
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      
+
       final email = await _authService.getUserEmail();
       if (email != null) {
         debugPrint('⚠️ Continuando con datos básicos del usuario');
@@ -320,8 +326,10 @@ class AuthProvider with ChangeNotifier {
     }
 
     try {
-      debugPrint('📝 Actualizando perfil de usuario ID: ${_currentUser!.idUsuario}');
-        
+      debugPrint(
+        '📝 Actualizando perfil de usuario ID: ${_currentUser!.idUsuario}',
+      );
+
       final updatedUser = await _userService.updateProfile(
         idUsuario: _currentUser!.idUsuario!,
         nombre: nombre,
@@ -361,8 +369,10 @@ class AuthProvider with ChangeNotifier {
     }
 
     try {
-      debugPrint('🔒 Cambiando contraseña para usuario ID: ${_currentUser!.idUsuario}');
-      
+      debugPrint(
+        '🔒 Cambiando contraseña para usuario ID: ${_currentUser!.idUsuario}',
+      );
+
       final success = await _userService.changePassword(
         idUsuario: _currentUser!.idUsuario!,
         newPassword: newPassword,

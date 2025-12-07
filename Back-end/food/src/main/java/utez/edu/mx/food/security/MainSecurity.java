@@ -90,7 +90,9 @@ public class MainSecurity {
                 .authorizeHttpRequests(req -> req
                         .requestMatchers(WHITE_LIST).permitAll()
                         .requestMatchers("/api/users/").permitAll()
+                        .requestMatchers("/api/users/push-token").permitAll()
                         .requestMatchers("/api/auth/login").permitAll()
+                        .requestMatchers("/api/notifications/send").permitAll()
                         .requestMatchers("/api/restaurants/**").authenticated()
                         .requestMatchers("/api/ratings/**").authenticated()
                         .requestMatchers("/api/favorites/**").authenticated()

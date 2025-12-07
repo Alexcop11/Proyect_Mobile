@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:rating_app/core/providers/auth_provider.dart';
+import 'package:rating_app/core/providers/notification_provider.dart';
+import 'package:rating_app/models/notification.dart' as app_notification;
+import 'package:intl/intl.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({Key? key}) : super(key: key);
@@ -8,138 +13,301 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  String selectedTab = 'Todas';
-
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFFF6B6B),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadNotifications();
+    });
+  }
+
+  Future<void> _loadNotifications() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final notificationProvider = Provider.of<NotificationProvider>(
+      context,
+      listen: false,
+    );
+
+    if (authProvider.currentUser?.idUsuario != null) {
+      await notificationProvider.loadUserNotifications(
+        authProvider.currentUser!.idUsuario!,
+      );
+    }
+  }
+
+  String _formatTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inMinutes < 1) {
+      return 'Ahora';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h';
+    } else if (difference.inDays == 1) {
+      return 'Ayer';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d';
+    } else {
+      return DateFormat('dd/MM/yy').format(dateTime);
+    }
+  }
+
+  IconData _getIconForType(app_notification.TipoNotificacion tipo) {
+    switch (tipo) {
+      case app_notification.TipoNotificacion.nuevoRestaurante:
+        return Icons.store_outlined;
+      case app_notification.TipoNotificacion.actualizacionMenu:
+        return Icons.restaurant_menu;
+      case app_notification.TipoNotificacion.promocion:
+        return Icons.card_giftcard_outlined;
+      case app_notification.TipoNotificacion.sistema:
+        return Icons.notifications_outlined;
+    }
+  }
+
+  Color _getColorForType(app_notification.TipoNotificacion tipo) {
+    switch (tipo) {
+      case app_notification.TipoNotificacion.nuevoRestaurante:
+        return const Color(0xFF4DD0E1);
+      case app_notification.TipoNotificacion.actualizacionMenu:
+        return const Color(0xFFFFA726);
+      case app_notification.TipoNotificacion.promocion:
+        return const Color(0xFFFF6B6B);
+      case app_notification.TipoNotificacion.sistema:
+        return const Color(0xFF9575CD);
+    }
+  }
+
+  Future<void> _handleMarkAsRead(int notificationId, bool isRead) async {
+    if (isRead) return; // Ya está leída
+
+    final notificationProvider = Provider.of<NotificationProvider>(
+      context,
+      listen: false,
+    );
+
+    final success = await notificationProvider.markAsRead(notificationId);
+
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Notificación marcada como leída'),
+          backgroundColor: Color(0xFF4CAF50),
+          duration: Duration(seconds: 1),
         ),
-        title: const Text(
-          'Notificaciones',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
+      );
+    }
+  }
+
+  Future<void> _handleMarkAllAsRead() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final notificationProvider = Provider.of<NotificationProvider>(
+      context,
+      listen: false,
+    );
+
+    if (authProvider.currentUser?.idUsuario == null) return;
+
+    final success = await notificationProvider.markAllAsRead(
+      authProvider.currentUser!.idUsuario!,
+    );
+
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Todas las notificaciones marcadas como leídas'),
+          backgroundColor: Color(0xFF4CAF50),
+          duration: Duration(seconds: 2),
         ),
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Tabs de filtrado
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildTab('Todas'),
-                  const SizedBox(width: 8),
-                  _buildTab('Restaurantes'),
-                  const SizedBox(width: 8),
-                  _buildTab('Restaurantes'),
-                  const SizedBox(width: 8),
-                  _buildTab('Menú'),
-                ],
-              ),
-            ),
+      );
+    }
+  }
+
+  Future<void> _handleDelete(int notificationId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar notificación'),
+        content: const Text('¿Estás seguro de eliminar esta notificación?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
           ),
-          
-          // Título de sección
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text(
-              'Notificaciones del día',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey[700],
-              ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFFF6B6B),
             ),
-          ),
-          
-          // Lista de notificaciones
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                _buildNotificationCard(
-                  icon: Icons.store_outlined,
-                  iconColor: const Color(0xFF4DD0E1),
-                  title: '¡Nuevo restaurante disponible cerca de ti!',
-                  description: 'Explora el nuevo local La Cocina Verde y disfruta de sus especialidades frescas.',
-                  time: '12:24 am',
-                  buttonText: 'Leída',
-                  buttonColor: Colors.pink[50]!,
-                  buttonTextColor: const Color(0xFFFF6B6B),
-                ),
-                const SizedBox(height: 12),
-                _buildNotificationCard(
-                  icon: Icons.card_giftcard_outlined,
-                  iconColor: const Color(0xFFFF6B6B),
-                  title: '¡Promoción especial por tiempo limitado!',
-                  description: 'Obtén un 20% de descuento en Taco Express al ordenar antes de las 8 p.m.',
-                  time: '12:24 am',
-                  buttonText: 'Leída',
-                  buttonColor: Colors.pink[50]!,
-                  buttonTextColor: const Color(0xFFFF6B6B),
-                ),
-                const SizedBox(height: 12),
-                _buildNotificationCard(
-                  icon: Icons.store_outlined,
-                  iconColor: const Color(0xFF4DD0E1),
-                  title: '¡Nuevo restaurante disponible cerca de ti!',
-                  description: 'Explora el nuevo local La Cocina Verde y disfruta de sus especialidades frescas.',
-                  time: '12:24 am',
-                  buttonText: 'Marcar sin leer',
-                  buttonColor: Colors.transparent,
-                  buttonTextColor: const Color(0xFFFF6B6B),
-                ),
-                const SizedBox(height: 12),
-                _buildNotificationCard(
-                  icon: Icons.store_outlined,
-                  iconColor: const Color(0xFF4DD0E1),
-                  title: '¡Nuevo restaurante disponible cerca de ti!',
-                  description: 'Explora el nuevo local La Cocina Verde y disfruta de sus especialidades frescas.',
-                  time: '12:24 am',
-                  buttonText: 'Leída',
-                  buttonColor: Colors.pink[50]!,
-                  buttonTextColor: const Color(0xFFFF6B6B),
-                ),
-                const SizedBox(height: 12),
-                _buildNotificationCard(
-                  icon: Icons.restaurant_menu,
-                  iconColor: const Color(0xFFFFA726),
-                  title: '¡Menú actualizado!',
-                  description: '',
-                  time: '12:24 am',
-                  buttonText: 'Leída',
-                  buttonColor: Colors.pink[50]!,
-                  buttonTextColor: const Color(0xFFFF6B6B),
-                ),
-              ],
-            ),
+            child: const Text('Eliminar'),
           ),
         ],
       ),
     );
+
+    if (confirmed != true) return;
+
+    final notificationProvider = Provider.of<NotificationProvider>(
+      context,
+      listen: false,
+    );
+
+    final success = await notificationProvider.deleteNotification(notificationId);
+
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Notificación eliminada'),
+          backgroundColor: Color(0xFF4CAF50),
+          duration: Duration(seconds: 1),
+        ),
+      );
+    }
   }
 
-  Widget _buildTab(String text) {
-    final isSelected = selectedTab == text;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          selectedTab = text;
-        });
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<NotificationProvider>(
+      builder: (context, notificationProvider, child) {
+        return Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            backgroundColor: const Color(0xFFFF6B6B),
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: const Text(
+              'Notificaciones',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            actions: [
+              if (notificationProvider.unreadCount > 0)
+                TextButton.icon(
+                  onPressed: _handleMarkAllAsRead,
+                  icon: const Icon(
+                    Icons.done_all,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  label: const Text(
+                    'Marcar todas',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+            ],
+          ),
+          body: RefreshIndicator(
+            onRefresh: _loadNotifications,
+            color: const Color(0xFFFF6B6B),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Tabs de filtrado
+                _buildFilterTabs(notificationProvider),
+
+                // Badge de no leídas
+                if (notificationProvider.unreadCount > 0)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF6B6B).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${notificationProvider.unreadCount} sin leer',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFFF6B6B),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // Título de sección
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: Text(
+                    'Notificaciones del día',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                ),
+
+                // Lista de notificaciones
+                Expanded(
+                  child: _buildNotificationsList(notificationProvider),
+                ),
+              ],
+            ),
+          ),
+        );
       },
+    );
+  }
+
+  Widget _buildFilterTabs(NotificationProvider provider) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _buildTab('Todas', null, provider),
+            const SizedBox(width: 8),
+            _buildTab(
+              'Restaurantes',
+              app_notification.TipoNotificacion.nuevoRestaurante,
+              provider,
+            ),
+            const SizedBox(width: 8),
+            _buildTab(
+              'Promociones',
+              app_notification.TipoNotificacion.promocion,
+              provider,
+            ),
+            const SizedBox(width: 8),
+            _buildTab(
+              'Menú',
+              app_notification.TipoNotificacion.actualizacionMenu,
+              provider,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTab(
+    String text,
+    app_notification.TipoNotificacion? tipo,
+    NotificationProvider provider,
+  ) {
+    final isSelected = provider.selectedFilter == tipo;
+    return GestureDetector(
+      onTap: () => provider.filterByType(tipo),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
@@ -158,21 +326,87 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  Widget _buildNotificationCard({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required String description,
-    required String time,
-    required String buttonText,
-    required Color buttonColor,
-    required Color buttonTextColor,
-  }) {
+  Widget _buildNotificationsList(NotificationProvider provider) {
+    if (provider.isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFFFF6B6B)),
+      );
+    }
+
+    if (provider.errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              provider.errorMessage!,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadNotifications,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF6B6B),
+              ),
+              child: const Text('Reintentar'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (provider.notifications.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.notifications_none,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No hay notificaciones',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: provider.notifications.length,
+      itemBuilder: (context, index) {
+        final notification = provider.notifications[index];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: _buildNotificationCard(notification),
+        );
+      },
+    );
+  }
+
+  Widget _buildNotificationCard(app_notification.Notification notification) {
+    final icon = _getIconForType(notification.tipo);
+    final color = _getColorForType(notification.tipo);
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: notification.leida ? Colors.grey[50] : Colors.blue[50],
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: notification.leida ? Colors.grey[200]! : Colors.blue[100]!,
+          width: 1,
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -182,34 +416,31 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
+              color: color.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(
-              icon,
-              color: iconColor,
-              size: 24,
-            ),
+            child: Icon(icon, color: color, size: 24),
           ),
           const SizedBox(width: 12),
-          
+
           // Contenido
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
-                  style: const TextStyle(
+                  notification.titulo,
+                  style: TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontWeight:
+                        notification.leida ? FontWeight.w500 : FontWeight.w600,
                     color: Colors.black87,
                   ),
                 ),
-                if (description.isNotEmpty) ...[
+                if (notification.mensaje.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
-                    description,
+                    notification.mensaje,
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey[600],
@@ -222,27 +453,38 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      time,
+                      _formatTime(notification.fechaCreacion),
                       style: TextStyle(
                         fontSize: 11,
                         color: Colors.grey[500],
                       ),
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
+                    GestureDetector(
+                      onTap: () => _handleMarkAsRead(
+                        notification.idNotificacion!,
+                        notification.leida,
                       ),
-                      decoration: BoxDecoration(
-                        color: buttonColor,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        buttonText,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: buttonTextColor,
-                          fontWeight: FontWeight.w500,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: notification.leida
+                              ? Colors.pink[50]
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                          border: notification.leida
+                              ? null
+                              : Border.all(color: const Color(0xFFFF6B6B)),
+                        ),
+                        child: Text(
+                          notification.leida ? 'Leída' : 'Marcar como leída',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: const Color(0xFFFF6B6B),
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ),
@@ -251,13 +493,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               ],
             ),
           ),
-          
+
           // Botón de eliminar
           IconButton(
             icon: Icon(Icons.delete_outline, color: Colors.grey[400], size: 20),
-            onPressed: () {
-              // Lógica para eliminar notificación
-            },
+            onPressed: () => _handleDelete(notification.idNotificacion!),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),

@@ -220,4 +220,6 @@ class Restaurant {
     // Basado en distancia, se calcularía el tiempo estimado
     return '25-30 min';
   }
+
+  void operator [](String other) {}
 }

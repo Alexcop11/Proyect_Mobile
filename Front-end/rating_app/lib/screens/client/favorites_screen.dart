@@ -69,9 +69,6 @@ class _FavoritesScreenState extends State<FavoritesScreen>
       builder: (context, authProvider, favoriteProvider, child) {
         final favorites = favoriteProvider.favorites;
 
-        // Debug: Mostrar información de favoritos
-        debugPrint('📊 FavoritesScreen build - Favoritos: ${favorites.length}');
-        debugPrint('📊 Estado de carga: ${favoriteProvider.isLoading}');
 
         return Scaffold(
           backgroundColor: const Color(0xFFF8F8F8),

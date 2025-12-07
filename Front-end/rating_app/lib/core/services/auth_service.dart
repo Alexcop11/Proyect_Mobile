@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:rating_app/core/services/api_services.dart';
+import 'package:rating_app/core/services/notification_services.dart';
 import 'package:rating_app/core/utils/constants.dart';
 import 'package:rating_app/models/user.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -31,10 +33,10 @@ class AuthService {
         await _saveAuthData(token, role, savedEmail);
         return {"token": token, "role": role, "email": savedEmail};
       } else {
-        final errorMessage = responseData['message'] ?? 'Credenciales incorrectas';
+        final errorMessage =
+            responseData['message'] ?? 'Credenciales incorrectas';
         throw Exception(errorMessage);
       }
-
     } catch (e) {
       debugPrint('❌ Error en login: $e');
       throw Exception(e.toString().replaceFirst('Exception: ', ''));
@@ -126,12 +128,14 @@ class AuthService {
 
   Future<String?> getUserEmail() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(StorageKeys.userEmail) ?? prefs.getString(StorageKeys.email);
+    return prefs.getString(StorageKeys.userEmail) ??
+        prefs.getString(StorageKeys.email);
   }
 
   Future<String?> getUserRole() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(StorageKeys.userRole) ?? prefs.getString(StorageKeys.role);
+    return prefs.getString(StorageKeys.userRole) ??
+        prefs.getString(StorageKeys.role);
   }
 
   Future<void> logout() async {
@@ -161,6 +165,7 @@ class AuthService {
     final token = await getStoredToken();
     return token != null && token.isNotEmpty;
   }
+
   Future<Map<String, dynamic>> updateUser({
     required int idUsuario,
     required String email,
@@ -178,7 +183,7 @@ class AuthService {
 
     final response = await _apiServices.request(
       method: 'PUT',
-      endpoint: 'http://192.168.110.171:8000/api/users/',
+      endpoint: 'http://192.168.0.6:8000/api/users/',
       data: payload,
     );
 
@@ -190,7 +195,7 @@ class AuthService {
       throw Exception(response.data['message'] ?? 'Error desconocido');
     }
   }
-  
+
   Future<String?> getStoredEmail() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(StorageKeys.email);
